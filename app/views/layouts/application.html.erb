@@ -23,9 +23,19 @@
   </head>
 
   <body>
-    <p class="notice"><%= notice %></p>
-    <p class="alert"><%= alert %></p>
-    <%= yield %>
-    <%= button_to "Sign in with Start.gg", user_startgg_omniauth_authorize_path, method: :post, data: { turbo: false } %>
+    <header>
+      <nav>
+        <% if current_user %>
+          <span>Welcome, <%= current_user.tag %> (<%= current_user.email %>)!</span>
+          <%= link_to "Sign out", destroy_user_session_path, data: { turbo_method: :delete } %>
+        <% else %>
+          <span>You are not signed in.</span>
+          <%= link_to "Sign in with Start.gg", user_startgg_omniauth_authorize_path %>
+        <% end %>
+      </nav>
+    </header>
+    <main>
+      <%= yield %>
+    </main>
   </body>
 </html>

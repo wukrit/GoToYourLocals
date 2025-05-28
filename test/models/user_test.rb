@@ -6,6 +6,7 @@
 #  email               :string           default(""), not null
 #  provider            :string
 #  remember_created_at :datetime
+#  tag                 :string
 #  uid                 :string
 #  created_at          :datetime         not null
 #  updated_at          :datetime         not null

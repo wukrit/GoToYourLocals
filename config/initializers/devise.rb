@@ -272,7 +272,10 @@ Devise.setup do |config|
   # Add a new OmniAuth provider. Check the wiki for more information on setting
   # up on your models and hooks.
   require "omniauth/strategies/startgg"
-  config.omniauth :startgg, ENV["STARTGG_CLIENT_ID"], ENV["STARTGG_CLIENT_SECRET"], scope: "user.identity" # Adjust scope as needed
+  config.omniauth :startgg, ENV["STARTGG_CLIENT_ID"], ENV["STARTGG_CLIENT_SECRET"], scope: "user.identity user.email"
+
+  # Allow GET requests for OmniAuth
+  OmniAuth.config.allowed_request_methods = [:post, :get]
 
   # ==> Warden configuration
   # If you want to use other strategies, that are not supported by Devise, or
