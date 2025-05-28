@@ -1,5 +1,15 @@
 Rails.application.routes.draw do
-  devise_for :users
+  devise_for :users, skip: [:registrations, :passwords, :confirmations],
+                     controllers: { omniauth_callbacks: 'users/omniauth_callbacks' }
+
+  # Keep existing sign_in and sign_out routes if needed, or customize further.
+  # For example, if you want to customize the sign_in path:
+  # devise_scope :user do
+  #   get 'login', to: 'devise/sessions#new', as: :new_user_session
+  #   post 'login', to: 'devise/sessions#create', as: :user_session
+  #   delete 'logout', to: 'devise/sessions#destroy', as: :destroy_user_session
+  # end
+
   root "home#index"
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
