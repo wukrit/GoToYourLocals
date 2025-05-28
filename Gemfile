@@ -63,6 +63,8 @@ group :development do
   gem "web-console"
 
   gem "solargraph"
+
+  gem "annotaterb"
 end
 
 group :test do
