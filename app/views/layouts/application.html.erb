@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <title><%= content_for(:title) || "Locals Tracker" %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -23,6 +23,9 @@
   </head>
 
   <body>
+    <p class="notice"><%= notice %></p>
+    <p class="alert"><%= alert %></p>
     <%= yield %>
+    <%= button_to "Sign in with Start.gg", user_startgg_omniauth_authorize_path, method: :post, data: { turbo: false } %>
   </body>
 </html>
