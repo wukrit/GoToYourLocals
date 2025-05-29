@@ -5,6 +5,7 @@
 # Table name: events
 #
 #  id            :bigint           not null, primary key
+#  matches_count :integer          default(0), not null
 #  name          :string
 #  num_entrants  :integer
 #  slug          :string

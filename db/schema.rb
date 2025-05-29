@@ -22,6 +22,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_05_29_214040) do
     t.integer "tournament_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "matches_count", default: 0, null: false
     t.index ["startgg_id"], name: "index_events_on_startgg_id", unique: true
     t.index ["tournament_id"], name: "index_events_on_tournament_id"
   end
@@ -56,6 +57,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_05_29_214040) do
     t.json "images"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "events_count", default: 0, null: false
     t.index ["startgg_id"], name: "index_tournaments_on_startgg_id", unique: true
   end
 
@@ -67,6 +69,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_05_29_214040) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["event_id"], name: "index_user_event_participations_on_event_id"
+    t.index ["user_id", "event_id"], name: "index_user_event_participations_on_user_id_and_event_id"
     t.index ["user_id"], name: "index_user_event_participations_on_user_id"
   end
 
@@ -76,7 +79,9 @@ ActiveRecord::Schema[8.0].define(version: 2025_05_29_214040) do
     t.boolean "is_winner"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["is_winner"], name: "index_user_match_participations_on_is_winner"
     t.index ["match_id"], name: "index_user_match_participations_on_match_id"
+    t.index ["user_id", "match_id"], name: "index_user_match_participations_on_user_id_and_match_id"
     t.index ["user_id"], name: "index_user_match_participations_on_user_id"
   end
 
@@ -103,6 +108,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_05_29_214040) do
     t.boolean "sync_in_progress", default: false
     t.text "last_sync_message"
     t.string "last_sync_status"
+    t.integer "events_count", default: 0, null: false
     t.index ["email"], name: "index_users_on_email", unique: true
   end
 

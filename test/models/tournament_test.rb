@@ -6,6 +6,7 @@
 #  city         :string
 #  country_code :string
 #  end_at       :datetime
+#  events_count :integer          default(0), not null
 #  images       :json
 #  is_online    :boolean
 #  name         :string

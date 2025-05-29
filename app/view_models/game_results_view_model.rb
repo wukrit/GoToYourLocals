@@ -9,6 +9,7 @@ class GameResultsViewModel
     @selected_game = selected_game
     @date_range = date_range
     @tournament_type = tournament_type
+    @cached_results = {}
   end
 
   def game_events
@@ -21,9 +22,9 @@ class GameResultsViewModel
 
   def game_events_with_associations
     @game_events_with_associations ||= Event.includes(
-      :tournament,
-      :user_event_participations,
-      matches: [:users, :user_match_participations]
+      tournament: {},
+      user_event_participations: :user,
+      matches: { user_match_participations: :user }
     ).where(id: event_ids)
   end
 
@@ -55,11 +56,11 @@ class GameResultsViewModel
   end
 
   def total_wins
-    @total_wins ||= calculate_total_wins_losses.first
+    @total_wins ||= cached_win_loss_stats[:wins]
   end
 
   def total_losses
-    @total_losses ||= calculate_total_wins_losses.last
+    @total_losses ||= cached_win_loss_stats[:losses]
   end
 
   def total_matches
@@ -93,28 +94,29 @@ class GameResultsViewModel
   end
 
   def get_user_participation(event)
-    current_user.user_event_participations.find_by(event: event)
+    event.user_event_participations.find { |p| p.user_id == current_user.id }
   end
 
   def get_event_matches(event)
-    event.matches.includes(user_match_participations: :user)
+    event.matches
   end
 
   def get_user_matches(all_matches)
-    all_matches.joins(:user_match_participations)
-      .where(user_match_participations: {user_id: current_user.id})
+    all_matches.select do |match|
+      match.user_match_participations.any? { |p| p.user_id == current_user.id }
+    end
   end
 
   def get_wins(user_matches)
-    user_matches.joins(:user_match_participations)
-      .where(user_match_participations: {user_id: current_user.id, is_winner: true})
-      .distinct
+    user_matches.select do |match|
+      match.user_match_participations.any? { |p| p.user_id == current_user.id && p.is_winner }
+    end
   end
 
   def get_losses(user_matches)
-    user_matches.joins(:user_match_participations)
-      .where(user_match_participations: {user_id: current_user.id, is_winner: false})
-      .distinct
+    user_matches.select do |match|
+      match.user_match_participations.any? { |p| p.user_id == current_user.id && !p.is_winner }
+    end
   end
 
   def get_record(wins, losses)
@@ -122,9 +124,7 @@ class GameResultsViewModel
   end
 
   def get_opponent(match)
-    opponent_participation = match.user_match_participations
-      .where.not(user_id: current_user.id)
-      .first
+    opponent_participation = match.user_match_participations.find { |p| p.user_id != current_user.id }
     opponent = opponent_participation&.user
 
     if opponent
@@ -137,42 +137,7 @@ class GameResultsViewModel
   end
 
   def player_records
-    records = {}
-
-    sorted_tournaments.each do |tournament|
-      events = tournaments_with_events[tournament]
-      events.each do |event|
-        all_matches = get_event_matches(event)
-        user_matches = get_user_matches(all_matches)
-
-        # Process wins
-        get_wins(user_matches).each do |match|
-          opponent = get_opponent(match)
-          records[opponent] ||= {wins: 0, losses: 0}
-          records[opponent][:wins] += 1
-        end
-
-        # Process losses
-        get_losses(user_matches).each do |match|
-          opponent = get_opponent(match)
-          records[opponent] ||= {wins: 0, losses: 0}
-          records[opponent][:losses] += 1
-        end
-      end
-    end
-
-    # Sort by total matches played (descending)
-    records.map do |player, stats|
-      total = stats[:wins] + stats[:losses]
-      win_rate = (total > 0) ? (stats[:wins].to_f / total * 100).round : 0
-      {
-        player: player,
-        wins: stats[:wins],
-        losses: stats[:losses],
-        total: total,
-        win_rate: win_rate
-      }
-    end.sort_by { |record| -record[:total] }
+    @player_records ||= calculate_player_records
   end
 
   def top_wins_against(limit = 3)
@@ -210,28 +175,68 @@ class GameResultsViewModel
     end
   end
 
-  def calculate_total_wins_losses
-    total_wins = 0
-    total_losses = 0
+  def cached_win_loss_stats
+    @cached_win_loss_stats ||= begin
+      wins = 0
+      losses = 0
 
+      # Gather all user match participations in a single pass
+      all_participations = sorted_tournaments.flat_map do |tournament|
+        tournaments_with_events[tournament].flat_map do |event|
+          event.matches.flat_map do |match|
+            match.user_match_participations.select { |p| p.user_id == current_user.id }
+          end
+        end
+      end
+
+      # Count wins and losses
+      all_participations.each do |participation|
+        if participation.is_winner
+          wins += 1
+        else
+          losses += 1
+        end
+      end
+
+      { wins: wins, losses: losses }
+    end
+  end
+
+  def calculate_player_records
+    records = {}
+
+    # Pre-load all data in memory to avoid N+1 queries
     sorted_tournaments.each do |tournament|
       events = tournaments_with_events[tournament]
       events.each do |event|
-        # Get matches for this event
-        all_matches = get_event_matches(event)
+        event.matches.each do |match|
+          # Only process matches the current user participated in
+          user_participation = match.user_match_participations.find { |p| p.user_id == current_user.id }
+          next unless user_participation
 
-        # Get user's matches
-        user_matches = get_user_matches(all_matches)
+          opponent = get_opponent(match)
+          records[opponent] ||= {wins: 0, losses: 0}
 
-        # Count wins and losses
-        wins = get_wins(user_matches).count
-        losses = get_losses(user_matches).count
-
-        total_wins += wins
-        total_losses += losses
+          if user_participation.is_winner
+            records[opponent][:wins] += 1
+          else
+            records[opponent][:losses] += 1
+          end
+        end
       end
     end
 
-    [total_wins, total_losses]
+    # Format results
+    records.map do |player, stats|
+      total = stats[:wins] + stats[:losses]
+      win_rate = (total > 0) ? (stats[:wins].to_f / total * 100).round : 0
+      {
+        player: player,
+        wins: stats[:wins],
+        losses: stats[:losses],
+        total: total,
+        win_rate: win_rate
+      }
+    end.sort_by { |record| -record[:total] }
   end
 end

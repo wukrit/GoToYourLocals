@@ -4,6 +4,7 @@
 #
 #  id                       :bigint           not null, primary key
 #  email                    :string           default(""), not null
+#  events_count             :integer          default(0), not null
 #  last_sync_message        :text
 #  last_sync_status         :string
 #  provider                 :string

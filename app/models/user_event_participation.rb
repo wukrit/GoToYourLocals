@@ -12,8 +12,9 @@
 #
 # Indexes
 #
-#  index_user_event_participations_on_event_id  (event_id)
-#  index_user_event_participations_on_user_id   (user_id)
+#  index_user_event_participations_on_event_id              (event_id)
+#  index_user_event_participations_on_user_id               (user_id)
+#  index_user_event_participations_on_user_id_and_event_id  (user_id,event_id)
 #
 # Foreign Keys
 #
@@ -21,6 +22,6 @@
 #  fk_rails_...  (user_id => users.id)
 #
 class UserEventParticipation < ApplicationRecord
-  belongs_to :user
+  belongs_to :user, counter_cache: :events_count
   belongs_to :event
 end

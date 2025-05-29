@@ -5,6 +5,7 @@
 
 <h3 class="tournament-results-header"><%= selected_game %> Tournament Results</h3>
 
+<% cache([current_user, "game_results_#{current_user.id}_#{selected_game}", date_range, tournament_type, current_user.updated_at.to_i]) do %>
 <div class="overall-record-panel">
   <div class="record-stats">
     <div class="record-stat">
@@ -170,4 +171,5 @@
 <div class="alert alert-info">
   No tournament results found for <%= selected_game %> within the selected date range and tournament type.
 </div>
+<% end %>
 <% end %>

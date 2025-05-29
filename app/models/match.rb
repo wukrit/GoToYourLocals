@@ -25,7 +25,7 @@
 #  fk_rails_...  (event_id => events.id)
 #
 class Match < ApplicationRecord
-  belongs_to :event
+  belongs_to :event, counter_cache: true
 
   has_many :user_match_participations
   has_many :users, through: :user_match_participations

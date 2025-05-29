@@ -4,8 +4,8 @@ class HomeController < ApplicationController
 
   def index
     if user_signed_in?
-      # Extract normalized game names
-      @games = helpers.extract_game_names(current_user.events)
+      # Extract normalized game names - use counter cache for optimization
+      @games = helpers.extract_game_names(current_user.events.includes(:tournament))
 
       # Get selected game or default to first game
       @selected_game = params[:game].presence || @games.first
@@ -26,6 +26,9 @@ class HomeController < ApplicationController
       # Update the sync status when done
       current_user.update(sync_in_progress: false)
 
+      # Expire caches
+      expire_fragment_caches
+
       if success
         flash[:notice] = "Successfully synced your tournaments."
       else
@@ -42,8 +45,8 @@ class HomeController < ApplicationController
           turbo_stream.replace("user_data",
             partial: "user_data",
             locals: {
-              games: helpers.extract_game_names(current_user.events),
-              selected_game: helpers.extract_game_names(current_user.events).first
+              games: helpers.extract_game_names(current_user.events.includes(:tournament)),
+              selected_game: helpers.extract_game_names(current_user.events.includes(:tournament)).first
             })
         ]
       }
@@ -67,6 +70,9 @@ class HomeController < ApplicationController
       # Update the sync status when done
       current_user.update(sync_in_progress: false)
 
+      # Expire caches
+      expire_fragment_caches
+
       if success
         flash[:notice] = "Successfully synced events and matches for tournament #{tournament.name}."
       else
@@ -83,8 +89,8 @@ class HomeController < ApplicationController
           turbo_stream.replace("user_data",
             partial: "user_data",
             locals: {
-              games: helpers.extract_game_names(current_user.events),
-              selected_game: helpers.extract_game_names(current_user.events).first
+              games: helpers.extract_game_names(current_user.events.includes(:tournament)),
+              selected_game: helpers.extract_game_names(current_user.events.includes(:tournament)).first
             })
         ]
       }
@@ -114,8 +120,8 @@ class HomeController < ApplicationController
           turbo_stream.replace("user_data",
             partial: "user_data",
             locals: {
-              games: helpers.extract_game_names(current_user.events),
-              selected_game: helpers.extract_game_names(current_user.events).first
+              games: helpers.extract_game_names(current_user.events.includes(:tournament)),
+              selected_game: helpers.extract_game_names(current_user.events.includes(:tournament)).first
             })
         ]
       }
@@ -127,5 +133,13 @@ class HomeController < ApplicationController
 
   def check_stuck_sync
     current_user.check_sync_status if user_signed_in?
+  end
+
+  def expire_fragment_caches
+    # Expire caches for current user's games
+    current_user.events.pluck(:name).map do |event_name|
+      game_name = helpers.normalize_game_name(event_name)
+      expire_fragment("game_results_#{current_user.id}_#{game_name}")
+    end
   end
 end

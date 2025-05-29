@@ -3,6 +3,7 @@
 # Table name: events
 #
 #  id            :bigint           not null, primary key
+#  matches_count :integer          default(0), not null
 #  name          :string
 #  num_entrants  :integer
 #  slug          :string
@@ -21,7 +22,7 @@
 #  fk_rails_...  (tournament_id => tournaments.id)
 #
 class Event < ApplicationRecord
-  belongs_to :tournament
+  belongs_to :tournament, counter_cache: true
 
   has_many :user_event_participations
   has_many :users, through: :user_event_participations
