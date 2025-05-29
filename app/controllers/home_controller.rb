@@ -1,5 +1,5 @@
 class HomeController < ApplicationController
-  before_action :authenticate_user!, only: [ :sync_tournaments, :sync_tournament_events, :sync_all ]
+  before_action :authenticate_user!, only: [:sync_tournaments, :sync_tournament_events, :sync_all]
   helper_method :filter_events_by_game
 
   def index
@@ -14,12 +14,25 @@ class HomeController < ApplicationController
 
   def sync_tournaments
     service = FetchUserTournamentsService.new(current_user)
-    if service.call
+    success = service.call
+
+    if success
       flash[:notice] = "Successfully synced your tournaments."
     else
-      flash[:alert] = "Failed to sync tournaments: #{service.error_messages.join(', ')}"
+      flash[:alert] = "Failed to sync tournaments: #{service.error_messages.join(", ")}"
     end
-    redirect_to root_path
+
+    respond_to do |format|
+      format.turbo_stream {
+        render turbo_stream: turbo_stream.replace("user_data",
+          partial: "user_data",
+          locals: {
+            games: helpers.extract_game_names(current_user.events),
+            selected_game: helpers.extract_game_names(current_user.events).first
+          })
+      }
+      format.html { redirect_to root_path }
+    end
   end
 
   def sync_tournament_events
@@ -29,10 +42,20 @@ class HomeController < ApplicationController
     if service.call
       flash[:notice] = "Successfully synced events and matches for tournament #{tournament.name}."
     else
-      flash[:alert] = "Failed to sync events and matches: #{service.error_messages.join(', ')}"
+      flash[:alert] = "Failed to sync events and matches: #{service.error_messages.join(", ")}"
     end
 
-    redirect_to root_path
+    respond_to do |format|
+      format.turbo_stream {
+        render turbo_stream: turbo_stream.replace("user_data",
+          partial: "user_data",
+          locals: {
+            games: helpers.extract_game_names(current_user.events),
+            selected_game: helpers.extract_game_names(current_user.events).first
+          })
+      }
+      format.html { redirect_to root_path }
+    end
   end
 
   def sync_all
@@ -57,12 +80,22 @@ class HomeController < ApplicationController
     if tournaments_success && events_success
       flash[:notice] = "Successfully synced all tournaments, events, and matches."
     elsif tournaments_success
-      flash[:alert] = "Synced tournaments, but some events failed: #{events_errors.uniq.join(', ')}"
+      flash[:alert] = "Synced tournaments, but some events failed: #{events_errors.uniq.join(", ")}"
     else
-      flash[:alert] = "Failed to sync tournaments: #{tournaments_service.error_messages.join(', ')}"
+      flash[:alert] = "Failed to sync tournaments: #{tournaments_service.error_messages.join(", ")}"
     end
 
-    redirect_to root_path
+    respond_to do |format|
+      format.turbo_stream {
+        render turbo_stream: turbo_stream.replace("user_data",
+          partial: "user_data",
+          locals: {
+            games: helpers.extract_game_names(current_user.events),
+            selected_game: helpers.extract_game_names(current_user.events).first
+          })
+      }
+      format.html { redirect_to root_path }
+    end
   end
 
   # Helper method to filter events by normalized game name

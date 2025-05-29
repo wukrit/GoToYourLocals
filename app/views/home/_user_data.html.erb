@@ -1,0 +1,33 @@
+<% if current_user.tournaments.any? && current_user.events.any? %>
+<div class="mb-4">
+  <div class="card">
+    <div class="card-header">
+      <h4>Select Game</h4>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <%= form_with url: root_path, method: :get, data: { turbo_frame: "game_results" } do |f| %>
+          <div class="input-group mb-3">
+            <%= select_tag :game, options_for_select(games, selected_game), class: "form-control" %>
+            <div class="input-group-append">
+              <%= submit_tag "View Results", class: "btn btn-primary" %>
+            </div>
+          </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%= turbo_frame_tag "game_results" do %>
+<% if selected_game.present? %>
+<%= render partial: "game_results", locals: { selected_game: selected_game } %>
+<% end %>
+<% end %>
+<% else %>
+<div class="alert alert-info">
+  You haven't synced any tournaments yet. Click the button above to sync your tournaments from Start.gg.
+</div>
+<% end %>
