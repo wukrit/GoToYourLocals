@@ -471,7 +471,7 @@ input#tournament_type_offline:checked+.tournament-type-btn {
 .view-results-btn:hover {
   transform: translate(-2px, -2px);
   box-shadow: 7px 7px 0px 0px var(--shadow-color);
-  background-color: var(--text);
+  background-color: var(--accent);
 }
 
 /* Overall record panel */
@@ -1089,16 +1089,4 @@ turbo-frame {
       .overall-record-panel {
         padding: var(--spacing-sm);
   }
-}
-
-/* Make form buttons look like regular buttons */
-button,
-input[type="submit"],
-input[type="button"] {
-  appearance: none;
-  background: transparent;
-  border: none;
-  font: inherit;
-  padding: 0;
-  cursor: pointer;
 }
