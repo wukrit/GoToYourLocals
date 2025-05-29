@@ -996,9 +996,10 @@ turbo-frame {
     gap: var(--spacing-sm);
   }
 
-                                                                                                                                                                                                                                                                .record-stat {
-                                                                                                                                                                                                                                                                  width: 100%;
-                                                                                                                                                                                                                                                                }
+  .record-stat {
+    width: 100%;
+  }
+
   .date-range-selector,
   .tournament-type-selector {
     flex-direction: column;
