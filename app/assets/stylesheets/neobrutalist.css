@@ -91,7 +91,6 @@ main {
 .site-header {
   background-color: var(--primary);
   padding: var(--spacing-md);
-  margin-bottom: var(--spacing-lg);
   border-bottom: 8px solid var(--text);
   position: relative;
 }
