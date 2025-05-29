@@ -9,6 +9,22 @@ class HomeController < ApplicationController
 
       # Get selected game or default to first game
       @selected_game = params[:game].presence || @games.first
+
+      respond_to do |format|
+        format.html
+        format.turbo_stream {
+          render turbo_stream: [
+            turbo_stream.update("game_results",
+              partial: "game_results",
+              locals: {
+                selected_game: @selected_game,
+                date_range: params[:date_range],
+                tournament_type: params[:tournament_type] || "offline"
+              }
+            )
+          ]
+        }
+      end
     end
   end
 
@@ -39,10 +55,10 @@ class HomeController < ApplicationController
     respond_to do |format|
       format.turbo_stream {
         render turbo_stream: [
-          turbo_stream.replace("action_panel",
+          turbo_stream.update("action_panel",
             partial: "shared/action_panel",
             locals: { current_user: current_user }),
-          turbo_stream.replace("user_data",
+          turbo_stream.update("user_data",
             partial: "user_data",
             locals: {
               games: helpers.extract_game_names(current_user.events.includes(:tournament)),
@@ -83,10 +99,10 @@ class HomeController < ApplicationController
     respond_to do |format|
       format.turbo_stream {
         render turbo_stream: [
-          turbo_stream.replace("action_panel",
+          turbo_stream.update("action_panel",
             partial: "shared/action_panel",
             locals: { current_user: current_user }),
-          turbo_stream.replace("user_data",
+          turbo_stream.update("user_data",
             partial: "user_data",
             locals: {
               games: helpers.extract_game_names(current_user.events.includes(:tournament)),
@@ -114,10 +130,10 @@ class HomeController < ApplicationController
     respond_to do |format|
       format.turbo_stream {
         render turbo_stream: [
-          turbo_stream.replace("action_panel",
+          turbo_stream.update("action_panel",
             partial: "shared/action_panel",
             locals: { current_user: current_user }),
-          turbo_stream.replace("user_data",
+          turbo_stream.update("user_data",
             partial: "user_data",
             locals: {
               games: helpers.extract_game_names(current_user.events.includes(:tournament)),

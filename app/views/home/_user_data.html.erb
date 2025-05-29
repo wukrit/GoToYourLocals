@@ -2,7 +2,7 @@
 <div class="game-selector">
   <h2>Select Game</h2>
   <div class="selector-container">
-    <%= form_with url: root_path, method: :get, data: { turbo_frame: "game_results" } do |f| %>
+    <%= form_with url: root_path, method: :get, data: { turbo: true } do |f| %>
     <div class="selector-group">
       <%= select_tag :game, options_for_select(games, selected_game) %>
       <%= submit_tag "View Results", class: "view-results-btn" %>
@@ -43,15 +43,15 @@
   </div>
 </div>
 
-<%= turbo_frame_tag "game_results" do %>
-<% if selected_game.present? %>
-<%= render partial: "game_results", locals: {
+<div id="game_results">
+  <% if selected_game.present? %>
+  <%= render partial: "game_results", locals: {
   selected_game: selected_game,
   date_range: params[:date_range],
   tournament_type: params[:tournament_type] || "offline"
 } %>
-<% end %>
-<% end %>
+  <% end %>
+</div>
 <% else %>
 <div class="alert alert-info">
   You haven't synced any tournaments yet. Click the button above to sync your tournaments from Start.gg.
