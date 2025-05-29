@@ -1,97 +1,6 @@
 <%
-  # Find all events for the selected game using our normalized names
-  game_events = filter_events_by_game(current_user.events, selected_game)
-
-  # Get the event IDs to use in subsequent queries
-  event_ids = game_events.map(&:id)
-
-  # Use the event IDs to get properly eager-loaded events
-  game_events_with_associations = Event.includes(
-    :tournament,
-    :user_event_participations,
-    matches: [:users, :user_match_participations]
-  ).where(id: event_ids)
-
-  # Group these events by tournament
-  tournaments_with_events = game_events_with_associations.group_by(&:tournament)
-
-  # Apply date filtering
-  filtered_tournaments = tournaments_with_events.keys
-
-  # Filter by date range if specified
-  if date_range.present? && date_range != "all"
-    case date_range
-    when "30"
-      start_date = 30.days.ago
-      filtered_tournaments = filtered_tournaments.select { |t| t.start_at && t.start_at >= start_date }
-    when "60"
-      start_date = 60.days.ago
-      filtered_tournaments = filtered_tournaments.select { |t| t.start_at && t.start_at >= start_date }
-    when "90"
-      start_date = 90.days.ago
-      filtered_tournaments = filtered_tournaments.select { |t| t.start_at && t.start_at >= start_date }
-    when "year"
-      start_date = Date.today.beginning_of_year
-      filtered_tournaments = filtered_tournaments.select { |t| t.start_at && t.start_at >= start_date }
-    end
-  end
-
-  # Filter by tournament type (online/offline)
-  if tournament_type.present? && tournament_type != "both"
-    is_online = tournament_type == "online"
-    filtered_tournaments = filtered_tournaments.select { |t| t.is_online == is_online }
-  end
-
-  # Sort tournaments by date
-  sorted_tournaments = filtered_tournaments.sort_by { |t| t.start_at || Time.new(1970) }.reverse
-
-  # Calculate overall record
-  total_wins = 0
-  total_losses = 0
-
-  sorted_tournaments.each do |tournament|
-    events = tournaments_with_events[tournament]
-    events.each do |event|
-      # Get matches for this event
-      all_matches = event.matches.includes(user_match_participations: :user)
-
-      # Get user's matches
-      user_matches = all_matches.joins(:user_match_participations)
-                      .where(user_match_participations: { user_id: current_user.id })
-
-      # Count wins and losses
-      wins = user_matches.joins(:user_match_participations)
-              .where(user_match_participations: { user_id: current_user.id, is_winner: true })
-              .distinct.count
-
-      losses = user_matches.joins(:user_match_participations)
-               .where(user_match_participations: { user_id: current_user.id, is_winner: false })
-               .distinct.count
-
-      total_wins += wins
-      total_losses += losses
-    end
-  end
-
-  # Calculate win percentage
-  total_matches = total_wins + total_losses
-  win_percentage = total_matches > 0 ? (total_wins.to_f / total_matches * 100).round : 0
-
-  # Determine date range text for display
-  date_range_text = case date_range
-    when "30" then "Last 30 Days"
-    when "60" then "Last 60 Days"
-    when "90" then "Last 90 Days"
-    when "year" then "This Year"
-    else "All Time"
-  end
-
-  # Determine tournament type text for display
-  tournament_type_text = case tournament_type
-    when "online" then "Online"
-    when "offline" then "Offline"
-    else "All"
-  end
+  # Initialize the view model
+  view_model = GameResultsViewModel.new(current_user, selected_game, date_range: date_range, tournament_type: tournament_type)
 %>
 
 <h3 class="tournament-results-header"><%= selected_game %> Tournament Results</h3>
@@ -99,25 +8,25 @@
 <div class="overall-record-panel">
   <div class="record-stats">
     <div class="record-stat">
-      <span class="stat-label">Overall Record (<%= date_range_text %>, <%= tournament_type_text %>)</span>
-      <span class="stat-value"><%= total_wins %>-<%= total_losses %></span>
+      <span class="stat-label">Overall Record (<%= view_model.date_range_text %>, <%= view_model.tournament_type_text %>)</span>
+      <span class="stat-value"><%= view_model.total_wins %>-<%= view_model.total_losses %></span>
     </div>
     <div class="record-stat">
       <span class="stat-label">Win Rate</span>
-      <span class="stat-value"><%= win_percentage %>%</span>
+      <span class="stat-value"><%= view_model.win_percentage %>%</span>
     </div>
     <div class="record-stat">
       <span class="stat-label">Total Matches</span>
-      <span class="stat-value"><%= total_matches %></span>
+      <span class="stat-value"><%= view_model.total_matches %></span>
     </div>
   </div>
   <div class="record-visual">
-    <div class="win-bar" style="width: <%= win_percentage %>%"></div>
-    <div class="loss-bar" style="width: <%= 100 - win_percentage %>%"></div>
+    <div class="win-bar" style="width: <%= view_model.win_percentage %>%"></div>
+    <div class="loss-bar" style="width: <%= 100 - view_model.win_percentage %>%"></div>
   </div>
 </div>
 
-<% if sorted_tournaments.any? %>
+<% if view_model.sorted_tournaments.any? %>
 <div class="table-container">
   <table>
     <thead>
@@ -132,30 +41,24 @@
       </tr>
     </thead>
     <tbody>
-      <% sorted_tournaments.each do |tournament| %>
-      <% events = tournaments_with_events[tournament] %>
+      <% view_model.sorted_tournaments.each do |tournament| %>
+      <% events = view_model.get_tournament_events(tournament) %>
       <% events.each do |event| %>
       <%
             # Get user's participation in this event
-            participation = current_user.user_event_participations.find_by(event: event)
+            participation = view_model.get_user_participation(event)
 
             # Get matches for this event
-            all_matches = event.matches.includes(user_match_participations: :user)
+            all_matches = view_model.get_event_matches(event)
 
             # Get user's matches
-            user_matches = all_matches.joins(:user_match_participations)
-                            .where(user_match_participations: { user_id: current_user.id })
+            user_matches = view_model.get_user_matches(all_matches)
 
             # Get wins and losses
-            wins = user_matches.joins(:user_match_participations)
-                    .where(user_match_participations: { user_id: current_user.id, is_winner: true })
-                    .distinct
+            wins = view_model.get_wins(user_matches)
+            losses = view_model.get_losses(user_matches)
 
-            losses = user_matches.joins(:user_match_participations)
-                     .where(user_match_participations: { user_id: current_user.id, is_winner: false })
-                     .distinct
-
-            record = "#{wins.size}-#{losses.size}"
+            record = view_model.get_record(wins, losses)
           %>
       <tr>
         <td><%= tournament.name %></td>
@@ -173,24 +76,9 @@
           <% if wins.any? %>
           <ul>
             <% wins.each do |win| %>
-            <%
-                      # Find opponent
-                      opponent_participation = win.user_match_participations
-                                                .where.not(user_id: current_user.id)
-                                                .first
-                      opponent = opponent_participation&.user
-                    %>
             <li>
               <div class="player-match win">
-                <% if opponent %>
-                <div class="player-name"><%= opponent.tag || "Unknown" %></div>
-                <% else %>
-                <%
-                          # Try to extract opponent name from score
-                          opponent_name = extract_opponent_from_score(win.display_score, current_user.tag)
-                        %>
-                <div class="player-name"><%= opponent_name || "Unknown Opponent" %></div>
-                <% end %>
+                <div class="player-name"><%= view_model.get_opponent(win) %></div>
                 <div class="match-score"><%= win.display_score || win.full_round_text || "Win" %></div>
               </div>
             </li>
@@ -204,24 +92,9 @@
           <% if losses.any? %>
           <ul>
             <% losses.each do |loss| %>
-            <%
-                      # Find opponent
-                      opponent_participation = loss.user_match_participations
-                                                 .where.not(user_id: current_user.id)
-                                                 .first
-                      opponent = opponent_participation&.user
-                    %>
             <li>
               <div class="player-match loss">
-                <% if opponent %>
-                <div class="player-name"><%= opponent.tag || "Unknown" %></div>
-                <% else %>
-                <%
-                          # Try to extract opponent name from score
-                          opponent_name = extract_opponent_from_score(loss.display_score, current_user.tag)
-                        %>
-                <div class="player-name"><%= opponent_name || "Unknown Opponent" %></div>
-                <% end %>
+                <div class="player-name"><%= view_model.get_opponent(loss) %></div>
                 <div class="match-score"><%= loss.display_score || loss.full_round_text || "Loss" %></div>
               </div>
             </li>

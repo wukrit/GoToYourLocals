@@ -1,6 +1,5 @@
 class HomeController < ApplicationController
   before_action :authenticate_user!, only: [:sync_tournaments, :sync_tournament_events, :sync_all]
-  helper_method :filter_events_by_game
 
   def index
     if user_signed_in?
@@ -95,13 +94,6 @@ class HomeController < ApplicationController
           })
       }
       format.html { redirect_to root_path }
-    end
-  end
-
-  # Helper method to filter events by normalized game name
-  def filter_events_by_game(events, game_name)
-    events.select do |event|
-      helpers.normalize_game_name(event.name) == game_name
     end
   end
 end
