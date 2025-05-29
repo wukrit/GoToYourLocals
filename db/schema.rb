@@ -10,7 +10,33 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_05_28_215915) do
+ActiveRecord::Schema[8.0].define(version: 2025_05_28_234220) do
+  create_table "tournaments", force: :cascade do |t|
+    t.string "name"
+    t.string "slug"
+    t.datetime "start_at"
+    t.datetime "end_at"
+    t.boolean "is_online"
+    t.string "venue_name"
+    t.string "city"
+    t.string "state"
+    t.string "country_code"
+    t.bigint "startgg_id"
+    t.json "images"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["startgg_id"], name: "index_tournaments_on_startgg_id", unique: true
+  end
+
+  create_table "user_tournament_participations", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.integer "tournament_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["tournament_id"], name: "index_user_tournament_participations_on_tournament_id"
+    t.index ["user_id"], name: "index_user_tournament_participations_on_user_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "email", default: "", null: false
     t.datetime "remember_created_at"
@@ -19,6 +45,12 @@ ActiveRecord::Schema[8.0].define(version: 2025_05_28_215915) do
     t.string "provider"
     t.string "uid"
     t.string "tag"
+    t.string "startgg_access_token"
+    t.string "startgg_refresh_token"
+    t.datetime "startgg_token_expires_at"
     t.index ["email"], name: "index_users_on_email", unique: true
   end
+
+  add_foreign_key "user_tournament_participations", "tournaments"
+  add_foreign_key "user_tournament_participations", "users"
 end

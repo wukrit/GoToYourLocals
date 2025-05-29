@@ -1,2 +1,8 @@
 <h1>Home#index</h1>
 <p>Find me in app/views/home/index.html.erb</p>
+
+<% if user_signed_in? %>
+<%= button_to "Sync My Tournaments", sync_user_tournaments_path, method: :post, class: "btn btn-primary" %>
+<% else %>
+<p>Please <%= link_to "sign in", user_startgg_omniauth_authorize_path %> to sync your tournaments.</p>
+<% end %>

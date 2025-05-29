@@ -23,5 +23,8 @@ module LocalsTracker
     #
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
+
+    # Add app/graphql to autoload paths - Removed since we're not using GraphQL client anymore
+    # config.autoload_paths << Rails.root.join("app", "graphql")
   end
 end

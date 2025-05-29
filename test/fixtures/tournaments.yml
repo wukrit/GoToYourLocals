@@ -1,0 +1,48 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+# == Schema Information
+#
+# Table name: tournaments
+#
+#  id           :integer          not null, primary key
+#  city         :string
+#  country_code :string
+#  end_at       :datetime
+#  images       :json
+#  is_online    :boolean
+#  name         :string
+#  slug         :string
+#  start_at     :datetime
+#  state        :string
+#  venue_name   :string
+#  created_at   :datetime         not null
+#  updated_at   :datetime         not null
+#  startgg_id   :bigint
+#
+# Indexes
+#
+#  index_tournaments_on_startgg_id  (startgg_id) UNIQUE
+#
+one:
+  name: MyString
+  slug: MyString
+  start_at: 2025-05-28 19:28:48
+  end_at: 2025-05-28 19:28:48
+  is_online: false
+  venue_name: MyString
+  city: MyString
+  state: MyString
+  country_code: MyString
+  startgg_id: 1
+
+two:
+  name: MyString
+  slug: MyString
+  start_at: 2025-05-28 19:28:48
+  end_at: 2025-05-28 19:28:48
+  is_online: false
+  venue_name: MyString
+  city: MyString
+  state: MyString
+  country_code: MyString
+  startgg_id: 1
