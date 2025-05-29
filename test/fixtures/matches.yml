@@ -1,0 +1,49 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+# == Schema Information
+#
+# Table name: matches
+#
+#  id              :integer          not null, primary key
+#  display_score   :string
+#  full_round_text :string
+#  identifier      :string
+#  round           :string
+#  round_number    :integer
+#  created_at      :datetime         not null
+#  updated_at      :datetime         not null
+#  event_id        :integer          not null
+#  loser_id        :integer
+#  startgg_id      :integer
+#  winner_id       :integer
+#
+# Indexes
+#
+#  index_matches_on_event_id    (event_id)
+#  index_matches_on_startgg_id  (startgg_id) UNIQUE
+#
+# Foreign Keys
+#
+#  event_id  (event_id => events.id)
+#
+one:
+  startgg_id: 1
+  round: MyString
+  round_number: 1
+  identifier: MyString
+  full_round_text: MyString
+  display_score: MyString
+  event: one
+  winner_id: 1
+  loser_id: 1
+
+two:
+  startgg_id: 1
+  round: MyString
+  round_number: 1
+  identifier: MyString
+  full_round_text: MyString
+  display_score: MyString
+  event: two
+  winner_id: 1
+  loser_id: 1

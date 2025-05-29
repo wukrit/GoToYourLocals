@@ -2,7 +2,73 @@
 <p>Find me in app/views/home/index.html.erb</p>
 
 <% if user_signed_in? %>
-<%= button_to "Sync My Tournaments", sync_user_tournaments_path, method: :post, class: "btn btn-primary" %>
+<div class="mb-4">
+  <div class="btn-group" role="group">
+    <%= button_to "Sync Tournaments Only", sync_user_tournaments_path, class: "btn btn-outline-primary" %>
+    <%= button_to "Sync All (Tournaments, Events & Matches)", sync_all_path, class: "btn btn-primary" %>
+  </div>
+</div>
+
+<% if current_user.tournaments.any? %>
+<h2 class="mb-3">My Tournaments</h2>
+<div class="list-group mb-4">
+  <% current_user.tournaments.order(start_at: :desc).each do |tournament| %>
+  <div class="list-group-item">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h5 class="mb-1"><%= tournament.name %></h5>
+        <p class="mb-1">
+          <% if tournament.start_at %>
+          <%= tournament.start_at.strftime("%B %d, %Y") %>
+          <% end %>
+          <% if tournament.city %>
+          - <%= [tournament.city, tournament.state, tournament.country_code].compact.join(", ") %>
+          <% end %>
+        </p>
+      </div>
+      <div>
+        <%= button_to "Sync This Tournament's Events", sync_tournament_events_path(tournament), class: "btn btn-sm btn-outline-primary" %>
+      </div>
+    </div>
+
+    <% if tournament.events.any? %>
+    <div class="mt-3">
+      <h6>Events</h6>
+      <ul class="list-group">
+        <% tournament.events.each do |event| %>
+        <li class="list-group-item">
+          <strong><%= event.name %></strong>
+          <% if user_participation = current_user.user_event_participations.find_by(event: event) %>
+          <span class="badge bg-primary">Placement: <%= user_participation.final_placement %></span>
+          <% end %>
+
+          <% user_matches = current_user.matches.where(event_id: event.id) %>
+          <% if user_matches.any? %>
+          <div class="mt-2">
+            <h6>Matches</h6>
+            <ul class="list-group">
+              <% user_matches.each do |match| %>
+              <li class="list-group-item <%= current_user.user_match_participations.find_by(match: match)&.is_winner ? 'list-group-item-success' : 'list-group-item-danger' %>">
+                <div><%= match.full_round_text %></div>
+                <div><%= match.display_score %></div>
+              </li>
+              <% end %>
+            </ul>
+          </div>
+          <% end %>
+        </li>
+        <% end %>
+      </ul>
+    </div>
+    <% end %>
+  </div>
+  <% end %>
+</div>
+<% else %>
+<div class="alert alert-info">
+  You haven't synced any tournaments yet. Click the button above to sync your tournaments from Start.gg.
+</div>
+<% end %>
 <% else %>
 <p>Please <%= link_to "sign in", user_startgg_omniauth_authorize_path %> to sync your tournaments.</p>
 <% end %>

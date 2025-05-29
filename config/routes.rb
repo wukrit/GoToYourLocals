@@ -16,6 +16,8 @@ Rails.application.routes.draw do
 
   root "home#index"
   post "sync_tournaments" => "home#sync_tournaments", as: :sync_user_tournaments
+  post 'sync_tournament_events/:tournament_id', to: 'home#sync_tournament_events', as: 'sync_tournament_events'
+  post 'sync_all', to: 'home#sync_all', as: 'sync_all'
 
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 

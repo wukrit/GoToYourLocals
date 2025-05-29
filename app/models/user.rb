@@ -26,6 +26,23 @@ class User < ApplicationRecord
   has_many :user_tournament_participations
   has_many :tournaments, through: :user_tournament_participations
 
+  # Add new associations for events and matches
+  has_many :user_event_participations
+  has_many :events, through: :user_event_participations
+
+  has_many :user_match_participations
+  has_many :matches, through: :user_match_participations
+
+  # Convenience method to find winning matches
+  def winning_matches
+    user_match_participations.where(is_winner: true).map(&:match)
+  end
+
+  # Convenience method to find losing matches
+  def losing_matches
+    user_match_participations.where(is_winner: false).map(&:match)
+  end
+
   def self.from_omniauth(auth)
     # Find an existing user by provider and uid, or initialize a new one
     user = where(provider: auth.provider, uid: auth.uid).first_or_initialize

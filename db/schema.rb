@@ -10,7 +10,35 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_05_28_234220) do
+ActiveRecord::Schema[8.0].define(version: 2025_05_29_012135) do
+  create_table "events", force: :cascade do |t|
+    t.integer "startgg_id"
+    t.string "name"
+    t.string "slug"
+    t.integer "num_entrants"
+    t.integer "tournament_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["startgg_id"], name: "index_events_on_startgg_id", unique: true
+    t.index ["tournament_id"], name: "index_events_on_tournament_id"
+  end
+
+  create_table "matches", force: :cascade do |t|
+    t.integer "startgg_id"
+    t.string "round"
+    t.integer "round_number"
+    t.string "identifier"
+    t.string "full_round_text"
+    t.string "display_score"
+    t.integer "event_id", null: false
+    t.integer "winner_id"
+    t.integer "loser_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["event_id"], name: "index_matches_on_event_id"
+    t.index ["startgg_id"], name: "index_matches_on_startgg_id", unique: true
+  end
+
   create_table "tournaments", force: :cascade do |t|
     t.string "name"
     t.string "slug"
@@ -26,6 +54,27 @@ ActiveRecord::Schema[8.0].define(version: 2025_05_28_234220) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["startgg_id"], name: "index_tournaments_on_startgg_id", unique: true
+  end
+
+  create_table "user_event_participations", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.integer "event_id", null: false
+    t.integer "final_placement"
+    t.integer "entrant_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["event_id"], name: "index_user_event_participations_on_event_id"
+    t.index ["user_id"], name: "index_user_event_participations_on_user_id"
+  end
+
+  create_table "user_match_participations", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.integer "match_id", null: false
+    t.boolean "is_winner"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["match_id"], name: "index_user_match_participations_on_match_id"
+    t.index ["user_id"], name: "index_user_match_participations_on_user_id"
   end
 
   create_table "user_tournament_participations", force: :cascade do |t|
@@ -51,6 +100,12 @@ ActiveRecord::Schema[8.0].define(version: 2025_05_28_234220) do
     t.index ["email"], name: "index_users_on_email", unique: true
   end
 
+  add_foreign_key "events", "tournaments"
+  add_foreign_key "matches", "events"
+  add_foreign_key "user_event_participations", "events"
+  add_foreign_key "user_event_participations", "users"
+  add_foreign_key "user_match_participations", "matches"
+  add_foreign_key "user_match_participations", "users"
   add_foreign_key "user_tournament_participations", "tournaments"
   add_foreign_key "user_tournament_participations", "users"
 end

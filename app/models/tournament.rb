@@ -24,4 +24,7 @@
 class Tournament < ApplicationRecord
   has_many :user_tournament_participations
   has_many :users, through: :user_tournament_participations
+
+  # Add events association
+  has_many :events
 end
