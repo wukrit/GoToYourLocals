@@ -549,7 +549,6 @@ input#tournament_type_offline:checked+.tournament-type-btn {
 /* Table styling */
 .table-container {
   background-color: var(--background);
-    /* padding: var(--spacing-md); */
   border: 4px solid var(--text);
   box-shadow: 10px 10px 0px 0px var(--shadow-color);
   margin-bottom: var(--spacing-md);
@@ -677,7 +676,7 @@ table li:last-child {
   background-color: var(--loss-color);
   color: var(--background);
   }
-  
+
   /* Match details box styling */
   .match-details {
     padding: 0.3rem 0.5rem;
@@ -727,7 +726,6 @@ table li:last-child {
 
 @media (max-width: 768px) {
   .table-container {
-    padding: var(--spacing-sm);
     max-width: 100vw;
   }
 
@@ -749,7 +747,6 @@ table li:last-child {
   .table-container {
     font-size: 0.85rem;
     overflow-x: auto;
-    padding: var(--spacing-sm);
   }
 
   table {
@@ -916,11 +913,7 @@ turbo-frame {
   /* Table styling */
   table {
     min-width: 800px;
-  }
-
-  .table-container {
-    padding: var(--spacing-sm);
-  }
+  
 }
 
 /* Small tablets and large phones */
@@ -943,7 +936,7 @@ turbo-frame {
     align-items: stretch;
       width: 100%;
     }
-    
+
     .btn {
       width: 100%;
       margin-right: 0;
@@ -959,26 +952,21 @@ turbo-frame {
     align-items: flex-start;
     width: 100%;
     }
-    
+
     .nav-button {
       width: 100%;
       text-align: center;
   }
 
-  .table-container {
-    padding: var(--spacing-sm);
-      max-width: 100vw;
-    }
-    
     table {
       font-size: 0.9rem;
       min-width: 800px;
     }
-    
+
     table th {
       padding: 0.4rem;
     }
-    
+
     table td {
       padding: 0.4rem;
   }
@@ -1025,60 +1013,60 @@ turbo-frame {
     margin-right: 0;
       margin-bottom: -4px;
     }
-    
+
     .filter-groups {
       flex-direction: column;
       width: 100%;
     }
     }
-    
+
     /* Small phones */
     @media (max-width: 480px) {
-    
+
       h1,
       .title {
         font-size: 2rem;
       }
-    
+
       .jumbotron h2 {
         font-size: 1.75rem;
       }
-    
+
       .logo-link {
         font-size: 1.25rem;
       }
-    
+
       .user-greeting {
         font-size: 1rem;
       }
-    
+
       .game-selector h2,
       .tournament-results-header {
         font-size: 1.5rem;
       }
-    
+
       .table-container {
         font-size: 0.85rem;
         overflow-x: auto;
       }
-    
+
       table {
         width: 100%;
         min-width: 800px;
         /* Ensure table doesn't shrink too much */
       }
-    
+
       table th,
       table td {
         padding: 0.4rem 0.3rem;
         line-height: 1.2;
       }
-    
+
       .player-match {
         flex-direction: row;
         align-items: center;
       }
-    
+
       .player-name {
         margin-bottom: 0;
         white-space: nowrap;
@@ -1086,11 +1074,11 @@ turbo-frame {
         text-overflow: ellipsis;
         max-width: 120px;
       }
-    
+
       .match-score {
         font-size: 0.85rem;
       }
-    
+
       .action-panel,
       .game-selector,
       .overall-record-panel {
