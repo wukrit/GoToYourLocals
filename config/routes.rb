@@ -1,9 +1,9 @@
 Rails.application.routes.draw do
-  devise_for :users, skip: [:registrations, :passwords, :confirmations],
-                     controllers: { omniauth_callbacks: 'users/omniauth_callbacks' }
+  devise_for :users, skip: [ :registrations, :passwords, :confirmations ],
+                     controllers: { omniauth_callbacks: "users/omniauth_callbacks" }
 
   devise_scope :user do
-    delete 'users/sign_out', to: 'devise/sessions#destroy', as: :destroy_user_session
+    delete "users/sign_out", to: "devise/sessions#destroy", as: :destroy_user_session
   end
 
   # Keep existing sign_in and sign_out routes if needed, or customize further.
@@ -16,8 +16,8 @@ Rails.application.routes.draw do
 
   root "home#index"
   post "sync_tournaments" => "home#sync_tournaments", as: :sync_user_tournaments
-  post 'sync_tournament_events/:tournament_id', to: 'home#sync_tournament_events', as: 'sync_tournament_events'
-  post 'sync_all', to: 'home#sync_all', as: 'sync_all'
+  post "sync_tournament_events/:tournament_id", to: "home#sync_tournament_events", as: "sync_tournament_events"
+  post "sync_all", to: "home#sync_all", as: "sync_all"
 
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 

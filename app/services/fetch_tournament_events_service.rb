@@ -172,7 +172,7 @@ class FetchTournamentEventsService
         result = fetch_with_fallback_approach
       end
 
-      return result
+      result
     rescue => e
       Rails.logger.error "Critical error in FetchTournamentEventsService for tournament #{tournament.id}: #{e.message}"
       Rails.logger.error e.backtrace.join("\n")

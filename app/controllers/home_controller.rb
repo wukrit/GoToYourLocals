@@ -1,5 +1,5 @@
 class HomeController < ApplicationController
-  before_action :authenticate_user!, only: [:sync_tournaments, :sync_tournament_events, :sync_all]
+  before_action :authenticate_user!, only: [ :sync_tournaments, :sync_tournament_events, :sync_all ]
 
   def index
   end

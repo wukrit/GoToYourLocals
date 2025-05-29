@@ -48,7 +48,7 @@
             <h6>Matches</h6>
             <ul class="list-group">
               <% user_matches.each do |match| %>
-              <li class="list-group-item <%= current_user.user_match_participations.find_by(match: match)&.is_winner ? 'list-group-item-success' : 'list-group-item-danger' %>">
+              <li class="list-group-item <%= current_user.user_match_participations.find_by(match: match)&.is_winner ? "list-group-item-success" : "list-group-item-danger" %>">
                 <div><%= match.full_round_text %></div>
                 <div><%= match.display_score %></div>
               </li>

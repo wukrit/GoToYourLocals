@@ -21,7 +21,7 @@
 class User < ApplicationRecord
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable, :trackable and :omniauthable
-  devise :rememberable, :omniauthable, omniauth_providers: [:startgg]
+  devise :rememberable, :omniauthable, omniauth_providers: [ :startgg ]
 
   has_many :user_tournament_participations
   has_many :tournaments, through: :user_tournament_participations

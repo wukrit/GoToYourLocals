@@ -13,7 +13,7 @@ module OmniAuth
       }
 
       # Ensure the token request is sent as JSON
-      option :token_options, [:headers, :body]
+      option :token_options, [ :headers, :body ]
 
       uid do
         raw_info["id"]
@@ -52,8 +52,8 @@ module OmniAuth
           }
         GRAPHQL
         response = access_token.post(options.client_options.gql_url, {
-          headers: {"Content-Type" => "application/json"},
-          body: {query: query}.to_json
+          headers: { "Content-Type" => "application/json" },
+          body: { query: query }.to_json
         }).parsed
 
         if response["data"] && response["data"]["currentUser"]
