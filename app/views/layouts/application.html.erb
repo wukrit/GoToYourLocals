@@ -20,22 +20,37 @@
     <%# Includes all stylesheet files in app/assets/stylesheets %>
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
+
+    <%# Added Google Fonts for neobrutalist typography %>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@800;900&display=swap" rel="stylesheet">
   </head>
 
   <body>
-    <header>
-      <nav>
-        <% if current_user %>
-          <span>Welcome, <%= current_user.tag %> (<%= current_user.email %>)!</span>
-          <%= link_to "Sign out", destroy_user_session_path, data: { turbo_method: :delete } %>
-        <% else %>
-          <span>You are not signed in.</span>
-          <%= link_to "Sign in with Start.gg", user_startgg_omniauth_authorize_path %>
-        <% end %>
+    <header class="site-header">
+      <nav class="nav-container">
+        <div class="logo-container">
+          <%= link_to "Locals Tracker", root_path, class: "logo-link" %>
+        </div>
+        <div class="user-nav">
+          <% if current_user %>
+            <span class="user-greeting">Welcome, <%= current_user.tag %> (<%= current_user.email %>)!</span>
+            <%= link_to "Sign out", destroy_user_session_path, class: "nav-button", data: { turbo_method: :delete } %>
+          <% else %>
+            <span class="user-greeting">You are not signed in.</span>
+            <%= link_to "Sign in with Start.gg", user_startgg_omniauth_authorize_path, class: "nav-button" %>
+          <% end %>
+        </div>
       </nav>
     </header>
     <main>
       <%= yield %>
     </main>
+    <footer class="site-footer">
+      <div class="footer-content">
+        <p>© <%= Date.today.year %> Locals Tracker - Track your tournament results</p>
+      </div>
+    </footer>
   </body>
 </html>

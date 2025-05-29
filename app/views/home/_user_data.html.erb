@@ -1,29 +1,55 @@
 <% if current_user.tournaments.any? && current_user.events.any? %>
-<div class="mb-4">
-  <div class="card">
-    <div class="card-header">
-      <h4>Select Game</h4>
+<div class="game-selector">
+  <h2>Select Game</h2>
+  <div class="selector-container">
+    <%= form_with url: root_path, method: :get, data: { turbo_frame: "game_results" } do |f| %>
+    <div class="selector-group">
+      <%= select_tag :game, options_for_select(games, selected_game) %>
+      <%= submit_tag "View Results", class: "view-results-btn" %>
     </div>
-    <div class="card-body">
-      <div class="row">
-        <div class="col-md-6">
-          <%= form_with url: root_path, method: :get, data: { turbo_frame: "game_results" } do |f| %>
-          <div class="input-group mb-3">
-            <%= select_tag :game, options_for_select(games, selected_game), class: "form-control" %>
-            <div class="input-group-append">
-              <%= submit_tag "View Results", class: "btn btn-primary" %>
-            </div>
-          </div>
-          <% end %>
-        </div>
+
+    <div class="filter-groups">
+      <div class="date-range-selector">
+        <span class="filter-label">Date range:</span>
+        <%= radio_button_tag :date_range, "all", params[:date_range] == "all" || params[:date_range].blank?, id: "date_range_all", class: "date-range-input" %>
+        <%= label_tag :date_range_all, "All Time", class: "date-range-btn #{'active' if params[:date_range] == 'all' || params[:date_range].blank?}" %>
+
+        <%= radio_button_tag :date_range, "30", params[:date_range] == "30", id: "date_range_30", class: "date-range-input" %>
+        <%= label_tag :date_range_30, "Last 30 Days", class: "date-range-btn #{'active' if params[:date_range] == '30'}" %>
+
+        <%= radio_button_tag :date_range, "60", params[:date_range] == "60", id: "date_range_60", class: "date-range-input" %>
+        <%= label_tag :date_range_60, "Last 60 Days", class: "date-range-btn #{'active' if params[:date_range] == '60'}" %>
+
+        <%= radio_button_tag :date_range, "90", params[:date_range] == "90", id: "date_range_90", class: "date-range-input" %>
+        <%= label_tag :date_range_90, "Last 90 Days", class: "date-range-btn #{'active' if params[:date_range] == '90'}" %>
+
+        <%= radio_button_tag :date_range, "year", params[:date_range] == "year", id: "date_range_year", class: "date-range-input" %>
+        <%= label_tag :date_range_year, "This Year", class: "date-range-btn #{'active' if params[:date_range] == 'year'}" %>
+      </div>
+
+      <div class="tournament-type-selector">
+        <span class="filter-label">Tournament type:</span>
+        <%= radio_button_tag :tournament_type, "offline", params[:tournament_type] == "offline" || params[:tournament_type].blank?, id: "tournament_type_offline", class: "tournament-type-input" %>
+        <%= label_tag :tournament_type_offline, "Offline", class: "tournament-type-btn #{'active' if params[:tournament_type] == 'offline' || params[:tournament_type].blank?}" %>
+
+        <%= radio_button_tag :tournament_type, "online", params[:tournament_type] == "online", id: "tournament_type_online", class: "tournament-type-input" %>
+        <%= label_tag :tournament_type_online, "Online", class: "tournament-type-btn #{'active' if params[:tournament_type] == 'online'}" %>
+
+        <%= radio_button_tag :tournament_type, "both", params[:tournament_type] == "both", id: "tournament_type_both", class: "tournament-type-input" %>
+        <%= label_tag :tournament_type_both, "Both", class: "tournament-type-btn #{'active' if params[:tournament_type] == 'both'}" %>
       </div>
     </div>
+    <% end %>
   </div>
 </div>
 
 <%= turbo_frame_tag "game_results" do %>
 <% if selected_game.present? %>
-<%= render partial: "game_results", locals: { selected_game: selected_game } %>
+<%= render partial: "game_results", locals: {
+  selected_game: selected_game,
+  date_range: params[:date_range],
+  tournament_type: params[:tournament_type] || "offline"
+} %>
 <% end %>
 <% end %>
 <% else %>

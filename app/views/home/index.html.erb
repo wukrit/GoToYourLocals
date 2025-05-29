@@ -1,23 +1,27 @@
-<h1>Locals Tracker</h1>
+<div class="page-container">
+  <h1 class="title">Locals Tracker</h1>
 
-<% if user_signed_in? %>
-<div class="mb-4">
-  <div class="btn-group" role="group">
-    <%= button_to "Sync Tournaments Only", sync_user_tournaments_path, class: "btn btn-outline-primary", data: { turbo: true } %>
-    <%= button_to "Sync All (Tournaments, Events & Matches)", sync_all_path, class: "btn btn-primary", data: { turbo: true } %>
+  <% if user_signed_in? %>
+  <div class="action-panel mb-4">
+    <div class="btn-group" role="group">
+      <%= button_to "Sync Tournaments Only", sync_user_tournaments_path, class: "btn btn-outline-primary", data: { turbo: true } %>
+      <%= button_to "Sync All (Tournaments, Events & Matches)", sync_all_path, class: "btn btn-primary", data: { turbo: true } %>
+    </div>
   </div>
-</div>
 
-<%= turbo_frame_tag "user_data" do %>
-<%= render partial: "user_data", locals: {
-    games: @games,
-    selected_game: @selected_game
-  } %>
-<% end %>
-<% else %>
-<div class="jumbotron">
-  <h2>Track your tournament results</h2>
-  <p>Sign in with Start.gg to sync your tournament history and track your performance.</p>
-  <p><%= link_to "Sign in with Start.gg", user_startgg_omniauth_authorize_path, class: "btn btn-lg btn-primary" %></p>
+  <%= turbo_frame_tag "user_data" do %>
+  <%= render partial: "user_data", locals: {
+      games: @games,
+      selected_game: @selected_game
+    } %>
+  <% end %>
+  <% else %>
+  <div class="jumbotron">
+    <h2>Track your tournament results</h2>
+    <p>Sign in with Start.gg to sync your tournament history and track your performance.</p>
+    <div class="cta-container">
+      <%= link_to "Sign in with Start.gg", user_startgg_omniauth_authorize_path, class: "btn btn-lg btn-primary" %>
+    </div>
+  </div>
+  <% end %>
 </div>
-<% end %>
