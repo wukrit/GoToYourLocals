@@ -2,7 +2,7 @@
 #
 # Table name: user_event_participations
 #
-#  id              :integer          not null, primary key
+#  id              :bigint           not null, primary key
 #  final_placement :integer
 #  created_at      :datetime         not null
 #  updated_at      :datetime         not null
@@ -17,8 +17,8 @@
 #
 # Foreign Keys
 #
-#  event_id  (event_id => events.id)
-#  user_id   (user_id => users.id)
+#  fk_rails_...  (event_id => events.id)
+#  fk_rails_...  (user_id => users.id)
 #
 class UserEventParticipation < ApplicationRecord
   belongs_to :user

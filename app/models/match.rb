@@ -2,7 +2,7 @@
 #
 # Table name: matches
 #
-#  id              :integer          not null, primary key
+#  id              :bigint           not null, primary key
 #  display_score   :string
 #  full_round_text :string
 #  identifier      :string
@@ -22,7 +22,7 @@
 #
 # Foreign Keys
 #
-#  event_id  (event_id => events.id)
+#  fk_rails_...  (event_id => events.id)
 #
 class Match < ApplicationRecord
   belongs_to :event

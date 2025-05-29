@@ -2,7 +2,7 @@
 #
 # Table name: events
 #
-#  id            :integer          not null, primary key
+#  id            :bigint           not null, primary key
 #  name          :string
 #  num_entrants  :integer
 #  slug          :string
@@ -18,7 +18,7 @@
 #
 # Foreign Keys
 #
-#  tournament_id  (tournament_id => tournaments.id)
+#  fk_rails_...  (tournament_id => tournaments.id)
 #
 require "test_helper"
 

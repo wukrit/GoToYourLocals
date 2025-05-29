@@ -2,7 +2,7 @@
 #
 # Table name: tournaments
 #
-#  id           :integer          not null, primary key
+#  id           :bigint           not null, primary key
 #  city         :string
 #  country_code :string
 #  end_at       :datetime
