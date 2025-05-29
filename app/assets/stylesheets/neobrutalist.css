@@ -298,6 +298,7 @@ main {
   padding: var(--spacing-md);
   border: 4px solid var(--text);
   box-shadow: 10px 10px 0px 0px var(--shadow-color);
+  margin-bottom: var(--spacing-md);
 }
 
 /* Form styling */
