@@ -175,6 +175,14 @@ class GameResultsViewModel
     end.sort_by { |record| -record[:total] }
   end
 
+  def top_wins_against(limit = 3)
+    player_records.sort_by { |record| -record[:wins] }.take(limit)
+  end
+
+  def top_losses_to(limit = 3)
+    player_records.sort_by { |record| -record[:losses] }.take(limit)
+  end
+
   private
 
   def filter_events_by_game(events, game_name)

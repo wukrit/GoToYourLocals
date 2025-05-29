@@ -752,6 +752,15 @@ table li:last-child {
   .player-records-container {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   }
+
+  .player-summary-container {
+    flex-direction: column;
+  }
+
+  .summary-section {
+    margin-bottom: var(--spacing-md);
+    background-color: var(--background);
+  }
 }
 
 @media (max-width: 768px) {
@@ -1244,6 +1253,67 @@ turbo-frame {
   z-index: -1;
 }
 
+/* Player Summary Styling */
+.player-summary-container {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+
+.summary-section {
+  flex: 1;
+  min-width: 280px;
+  border: 4px solid var(--text);
+  padding: var(--spacing-md);
+  box-shadow: 8px 8px 0px 0px var(--shadow-color);
+  background-color: var(--background);
+}
+
+.summary-title {
+  font-size: 1.2rem;
+  margin-bottom: var(--spacing-md);
+  font-weight: 800;
+  text-transform: uppercase;
+  border-bottom: 3px solid var(--text);
+  display: inline-block;
+  padding-bottom: var(--spacing-sm);
+}
+
+.summary-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.summary-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm);
+  border: 3px solid var(--text);
+}
+
+.win-card {
+  background-color: var(--win-color);
+}
+
+.loss-card {
+  background-color: var(--loss-color);
+}
+
+.summary-player {
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+.summary-record {
+  font-weight: 800;
+  background-color: var(--background);
+  padding: 0.25rem 0.5rem;
+  border: 2px solid var(--text);
+}
+
 .player-records-container {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -1301,14 +1371,4 @@ turbo-frame {
 .player-total-matches {
   font-size: 0.9rem;
   color: var(--text-muted);
-}
-
-/* Table styling */
-.table-container {
-  background-color: var(--background);
-  border: 4px solid var(--text);
-  box-shadow: 10px 10px 0px 0px var(--shadow-color);
-  margin-bottom: var(--spacing-md);
-  overflow-x: auto;
-  max-width: 100%;
 }

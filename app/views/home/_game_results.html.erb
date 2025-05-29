@@ -37,6 +37,33 @@
 
   <div data-player-records-target="section" style="display: none; margin-top: -3rem;">
     <h4 class="player-records-header">Player Matchup Records</h4>
+
+    <div class="player-summary-container">
+      <div class="summary-section best-wins">
+        <h5 class="summary-title">Most Wins Against</h5>
+        <div class="summary-cards">
+          <% view_model.top_wins_against.each do |record| %>
+          <div class="summary-card win-card">
+            <div class="summary-player"><%= record[:player] %></div>
+            <div class="summary-record"><%= record[:wins] %>-<%= record[:losses] %></div>
+          </div>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="summary-section worst-losses">
+        <h5 class="summary-title">Most Losses To</h5>
+        <div class="summary-cards">
+          <% view_model.top_losses_to.each do |record| %>
+          <div class="summary-card loss-card">
+            <div class="summary-player"><%= record[:player] %></div>
+            <div class="summary-record"><%= record[:wins] %>-<%= record[:losses] %></div>
+          </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
     <div class="player-records-container">
       <% view_model.player_records.each do |record| %>
       <div class="player-record-card">
