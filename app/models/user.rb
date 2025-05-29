@@ -4,11 +4,14 @@
 #
 #  id                       :bigint           not null, primary key
 #  email                    :string           default(""), not null
+#  last_sync_message        :text
+#  last_sync_status         :string
 #  provider                 :string
 #  remember_created_at      :datetime
 #  startgg_access_token     :string
 #  startgg_refresh_token    :string
 #  startgg_token_expires_at :datetime
+#  sync_in_progress         :boolean          default(FALSE)
 #  tag                      :string
 #  uid                      :string
 #  created_at               :datetime         not null
@@ -41,6 +44,15 @@ class User < ApplicationRecord
   # Convenience method to find losing matches
   def losing_matches
     user_match_participations.where(is_winner: false).map(&:match)
+  end
+
+  # Check if sync has been stuck for too long (over 10 minutes) and reset it
+  def check_sync_status
+    if sync_in_progress? && updated_at < 10.minutes.ago
+      update(sync_in_progress: false,
+             last_sync_message: "Previous sync appears to have failed.",
+             last_sync_status: "error")
+    end
   end
 
   def self.from_omniauth(auth)

@@ -241,10 +241,16 @@ class FetchTournamentEventsService
     Rails.logger.debug "Starting event sync for tournament #{tournament.id} (#{tournament.name}) and user #{user.id}"
 
     begin
-      # First, sync the event standings to get placement info
+      # First, try the standard query approach
       result = fetch_with_standard_query
 
-      # Next, fetch all the user's sets directly for better match data
+      # If the standard query fails with a complexity error, try the fallback approach
+      if !result && complexity_error?
+        Rails.logger.info "Standard query failed due to complexity limits. Trying fallback approach for large tournament."
+        result = fetch_with_fallback_approach
+      end
+
+      # Next, fetch all the user's sets directly for better match data (regardless of which approach was used)
       result = fetch_user_sets(tournament) && result
 
       result
@@ -335,6 +341,8 @@ class FetchTournamentEventsService
   def fetch_with_standard_query
     # Make a direct HTTP request to the StartGG API
     uri = URI.parse("https://api.start.gg/gql/alpha")
+    events_synced_count = 0
+    matches_synced_count = 0
 
     request = Net::HTTP::Post.new(uri.path)
     request["Content-Type"] = "application/json"
@@ -375,9 +383,6 @@ class FetchTournamentEventsService
       Rails.logger.info "No events found for tournament #{tournament.id} (#{tournament.name})."
       return true # Not an error, just no events
     end
-
-    events_synced_count = 0
-    matches_synced_count = 0
 
     events.each do |api_event|
       next unless api_event && api_event["id"]
@@ -722,5 +727,155 @@ class FetchTournamentEventsService
         participation.save
       end
     end
+  end
+
+  # Check if the error messages contain complexity errors
+  def complexity_error?
+    @error_messages.any? { |msg| msg.include?("query complexity is too high") || msg.include?("maximum of 1000 objects") }
+  end
+
+  # Fallback approach for large tournaments
+  def fetch_with_fallback_approach
+    Rails.logger.info "Using fallback approach for large tournament #{tournament.id} (#{tournament.name})"
+
+    # First, get the list of events with minimal data
+    events = fetch_simple_tournament_events
+    return false unless events
+
+    # Then fetch details for each event separately
+    events_synced_count = 0
+    matches_synced_count = 0
+
+    events.each do |simple_event|
+      next unless simple_event && simple_event["id"]
+
+      # Process basic event data
+      event = process_event(simple_event)
+      next unless event.persisted?
+
+      # Then fetch the event's details separately
+      if fetch_event_details(event)
+        events_synced_count += 1
+        matches_synced_count += event.matches.where(created_at: Time.now.beginning_of_day..Time.now).count
+      end
+    end
+
+    Rails.logger.info "Successfully synced #{events_synced_count} events and approximately #{matches_synced_count} matches using fallback approach"
+    true
+  end
+
+  # Fetch just the list of events for a tournament
+  def fetch_simple_tournament_events
+    uri = URI.parse("https://api.start.gg/gql/alpha")
+
+    request = Net::HTTP::Post.new(uri.path)
+    request["Content-Type"] = "application/json"
+    request["Authorization"] = "Bearer #{user.startgg_access_token}"
+
+    variables = {
+      tournamentId: tournament.startgg_id
+    }
+
+    request.body = {
+      query: TOURNAMENT_SIMPLE_QUERY,
+      variables: variables
+    }.to_json
+
+    response = make_api_request(uri, request)
+    return nil unless response.is_a?(Net::HTTPSuccess)
+
+    data = JSON.parse(response.body)
+
+    if data["errors"]
+      data["errors"].each do |error|
+        @error_messages << "GraphQL Error: #{error["message"]}"
+      end
+      Rails.logger.error "GraphQL simple query failed for tournament #{tournament.id}: #{@error_messages.join("; ")}"
+      return nil
+    end
+
+    tournament_data = data.dig("data", "tournament")
+    if tournament_data.nil?
+      Rails.logger.warn "No tournament data returned from StartGG API for ID: #{tournament.startgg_id} in simple query."
+      return nil
+    end
+
+    events = tournament_data["events"]
+    unless events&.any?
+      Rails.logger.info "No events found for tournament #{tournament.id} (#{tournament.name}) in simple query."
+      return []
+    end
+
+    events
+  end
+
+  # Fetch details for a single event
+  def fetch_event_details(event)
+    uri = URI.parse("https://api.start.gg/gql/alpha")
+    page = 1
+
+    # Get event standings and sets with pagination for sets
+    loop do
+      request = Net::HTTP::Post.new(uri.path)
+      request["Content-Type"] = "application/json"
+      request["Authorization"] = "Bearer #{user.startgg_access_token}"
+
+      variables = {
+        eventId: event.startgg_id,
+        userId: user.uid.to_i,
+        page: page
+      }
+
+      request.body = {
+        query: EVENT_SETS_QUERY,
+        variables: variables
+      }.to_json
+
+      response = make_api_request(uri, request)
+      return false unless response.is_a?(Net::HTTPSuccess)
+
+      data = JSON.parse(response.body)
+
+      if data["errors"]
+        data["errors"].each do |error|
+          @error_messages << "GraphQL Error: #{error["message"]}"
+        end
+        Rails.logger.error "GraphQL event query failed for event #{event.id}: #{@error_messages.join("; ")}"
+        return false
+      end
+
+      event_data = data.dig("data", "event")
+      if event_data.nil?
+        Rails.logger.warn "No event data returned from StartGG API for ID: #{event.startgg_id}."
+        return false
+      end
+
+      # Process user's standing in this event
+      process_user_standing(event, event_data["standings"]) if event_data["standings"]
+
+      # Process sets for this event
+      sets_data = event_data.dig("sets")
+      if sets_data && sets_data["nodes"]&.any?
+        Rails.logger.info "Found #{sets_data["nodes"].size} matches for event #{event.name}"
+
+        sets_data["nodes"].each do |api_match|
+          next unless api_match && api_match["id"]
+          match = process_match(event, api_match)
+        end
+
+        # Check if we need to fetch more pages
+        page_info = sets_data["pageInfo"]
+        if page_info && page_info["page"] < page_info["totalPages"]
+          page += 1
+          next
+        end
+      else
+        Rails.logger.info "No matches found for event #{event.name}"
+      end
+
+      break
+    end
+
+    true
   end
 end

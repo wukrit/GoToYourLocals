@@ -1,5 +1,6 @@
 class HomeController < ApplicationController
   before_action :authenticate_user!, only: [:sync_tournaments, :sync_tournament_events, :sync_all]
+  before_action :check_stuck_sync, only: [:index, :sync_tournaments, :sync_tournament_events, :sync_all], if: :user_signed_in?
 
   def index
     if user_signed_in?
@@ -12,88 +13,119 @@ class HomeController < ApplicationController
   end
 
   def sync_tournaments
-    service = FetchUserTournamentsService.new(current_user)
-    success = service.call
-
-    if success
-      flash[:notice] = "Successfully synced your tournaments."
+    # Check if a sync is already in progress
+    if current_user.sync_in_progress?
+      flash[:alert] = "A sync is already in progress. Please wait until it completes."
     else
-      flash[:alert] = "Failed to sync tournaments: #{service.error_messages.join(", ")}"
+      # Set sync_in_progress flag immediately for UI feedback
+      current_user.update(sync_in_progress: true)
+
+      service = FetchUserTournamentsService.new(current_user)
+      success = service.call
+
+      # Update the sync status when done
+      current_user.update(sync_in_progress: false)
+
+      if success
+        flash[:notice] = "Successfully synced your tournaments."
+      else
+        flash[:alert] = "Failed to sync tournaments: #{service.error_messages.join(", ")}"
+      end
     end
 
     respond_to do |format|
       format.turbo_stream {
-        render turbo_stream: turbo_stream.replace("user_data",
-          partial: "user_data",
-          locals: {
-            games: helpers.extract_game_names(current_user.events),
-            selected_game: helpers.extract_game_names(current_user.events).first
-          })
+        render turbo_stream: [
+          turbo_stream.replace("action_panel",
+            partial: "shared/action_panel",
+            locals: { current_user: current_user }),
+          turbo_stream.replace("user_data",
+            partial: "user_data",
+            locals: {
+              games: helpers.extract_game_names(current_user.events),
+              selected_game: helpers.extract_game_names(current_user.events).first
+            })
+        ]
       }
       format.html { redirect_to root_path }
     end
   end
 
   def sync_tournament_events
-    tournament = Tournament.find(params[:tournament_id])
-    service = FetchTournamentEventsService.new(tournament, current_user)
-
-    if service.call
-      flash[:notice] = "Successfully synced events and matches for tournament #{tournament.name}."
+    # Check if a sync is already in progress
+    if current_user.sync_in_progress?
+      flash[:alert] = "A sync is already in progress. Please wait until it completes."
     else
-      flash[:alert] = "Failed to sync events and matches: #{service.error_messages.join(", ")}"
+      # Set sync_in_progress flag immediately for UI feedback
+      current_user.update(sync_in_progress: true)
+
+      tournament = Tournament.find(params[:tournament_id])
+      service = FetchTournamentEventsService.new(tournament, current_user)
+
+      success = service.call
+
+      # Update the sync status when done
+      current_user.update(sync_in_progress: false)
+
+      if success
+        flash[:notice] = "Successfully synced events and matches for tournament #{tournament.name}."
+      else
+        flash[:alert] = "Failed to sync events and matches: #{service.error_messages.join(", ")}"
+      end
     end
 
     respond_to do |format|
       format.turbo_stream {
-        render turbo_stream: turbo_stream.replace("user_data",
-          partial: "user_data",
-          locals: {
-            games: helpers.extract_game_names(current_user.events),
-            selected_game: helpers.extract_game_names(current_user.events).first
-          })
+        render turbo_stream: [
+          turbo_stream.replace("action_panel",
+            partial: "shared/action_panel",
+            locals: { current_user: current_user }),
+          turbo_stream.replace("user_data",
+            partial: "user_data",
+            locals: {
+              games: helpers.extract_game_names(current_user.events),
+              selected_game: helpers.extract_game_names(current_user.events).first
+            })
+        ]
       }
       format.html { redirect_to root_path }
     end
   end
 
   def sync_all
-    # First sync tournaments
-    tournaments_service = FetchUserTournamentsService.new(current_user)
-    tournaments_success = tournaments_service.call
-
-    # Then sync events for all tournaments
-    events_success = true
-    events_errors = []
-
-    if tournaments_success
-      current_user.tournaments.each do |tournament|
-        events_service = FetchTournamentEventsService.new(tournament, current_user)
-        unless events_service.call
-          events_success = false
-          events_errors += events_service.error_messages
-        end
-      end
-    end
-
-    if tournaments_success && events_success
-      flash[:notice] = "Successfully synced all tournaments, events, and matches."
-    elsif tournaments_success
-      flash[:alert] = "Synced tournaments, but some events failed: #{events_errors.uniq.join(", ")}"
+    # Check if a sync is already in progress
+    if current_user.sync_in_progress?
+      flash[:alert] = "A sync is already in progress. Please wait until it completes."
     else
-      flash[:alert] = "Failed to sync tournaments: #{tournaments_service.error_messages.join(", ")}"
+      # Set sync_in_progress flag immediately for UI feedback
+      current_user.update(sync_in_progress: true)
+
+      # Enqueue the background job to sync all tournaments and events
+      SyncAllJob.perform_later(current_user.id)
+      flash[:notice] = "Sync has been scheduled and will run in the background."
     end
 
     respond_to do |format|
       format.turbo_stream {
-        render turbo_stream: turbo_stream.replace("user_data",
-          partial: "user_data",
-          locals: {
-            games: helpers.extract_game_names(current_user.events),
-            selected_game: helpers.extract_game_names(current_user.events).first
-          })
+        render turbo_stream: [
+          turbo_stream.replace("action_panel",
+            partial: "shared/action_panel",
+            locals: { current_user: current_user }),
+          turbo_stream.replace("user_data",
+            partial: "user_data",
+            locals: {
+              games: helpers.extract_game_names(current_user.events),
+              selected_game: helpers.extract_game_names(current_user.events).first
+            })
+        ]
       }
       format.html { redirect_to root_path }
     end
+  end
+
+  private
+
+  def check_stuck_sync
+    current_user.check_sync_status if user_signed_in?
   end
 end

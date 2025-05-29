@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_05_29_012135) do
+ActiveRecord::Schema[8.0].define(version: 2025_05_29_214040) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -100,6 +100,9 @@ ActiveRecord::Schema[8.0].define(version: 2025_05_29_012135) do
     t.string "startgg_access_token"
     t.string "startgg_refresh_token"
     t.datetime "startgg_token_expires_at"
+    t.boolean "sync_in_progress", default: false
+    t.text "last_sync_message"
+    t.string "last_sync_status"
     t.index ["email"], name: "index_users_on_email", unique: true
   end
 

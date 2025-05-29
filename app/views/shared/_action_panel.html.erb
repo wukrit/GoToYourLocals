@@ -1,0 +1,35 @@
+<div class="action-panel" data-controller="sync-button">
+  <div class="btn-group" role="group">
+    <%= button_to "Sync Tournaments Only", sync_user_tournaments_path,
+          class: "btn btn-outline-primary",
+          form: {
+            class: "sync-form",
+            data: {
+              action: "submit->sync-button#submit"
+            }
+          },
+          data: {
+            turbo: true,
+            sync_button_target: "button"
+          },
+          disabled: current_user.sync_in_progress? %>
+    <%= button_to "Sync All (Tournaments, Events & Matches)", sync_all_path,
+          class: "btn btn-primary",
+          form: {
+            class: "sync-form",
+            data: {
+              action: "submit->sync-button#submit"
+            }
+          },
+          data: {
+            turbo: true,
+            sync_button_target: "button"
+          },
+          disabled: current_user.sync_in_progress? %>
+  </div>
+  <% if current_user.sync_in_progress? %>
+  <div class="alert alert-info mt-2">
+    <small>A sync is currently in progress. Please wait for it to complete.</small>
+  </div>
+  <% end %>
+</div>
