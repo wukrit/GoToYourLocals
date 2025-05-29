@@ -932,9 +932,10 @@ turbo-frame {
     font-size: 2rem;
   }
 
-                                                                                                                                                                                                                                                                .jumbotron {
-                                                                                                                                                                                                                                                                  padding: var(--spacing-md);
-                                                                                                                                                                                                                                                                }
+  .jumbotron {
+    padding: var(--spacing-md);
+  }
+
   .btn-group {
     flex-direction: column;
     align-items: stretch;
