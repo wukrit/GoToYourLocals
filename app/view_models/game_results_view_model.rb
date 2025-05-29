@@ -148,14 +148,14 @@ class GameResultsViewModel
         # Process wins
         get_wins(user_matches).each do |match|
           opponent = get_opponent(match)
-          records[opponent] ||= { wins: 0, losses: 0 }
+          records[opponent] ||= {wins: 0, losses: 0}
           records[opponent][:wins] += 1
         end
 
         # Process losses
         get_losses(user_matches).each do |match|
           opponent = get_opponent(match)
-          records[opponent] ||= { wins: 0, losses: 0 }
+          records[opponent] ||= {wins: 0, losses: 0}
           records[opponent][:losses] += 1
         end
       end
@@ -164,7 +164,7 @@ class GameResultsViewModel
     # Sort by total matches played (descending)
     records.map do |player, stats|
       total = stats[:wins] + stats[:losses]
-      win_rate = total > 0 ? (stats[:wins].to_f / total * 100).round : 0
+      win_rate = (total > 0) ? (stats[:wins].to_f / total * 100).round : 0
       {
         player: player,
         wins: stats[:wins],
