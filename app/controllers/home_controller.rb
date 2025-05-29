@@ -1,7 +1,15 @@
 class HomeController < ApplicationController
   before_action :authenticate_user!, only: [ :sync_tournaments, :sync_tournament_events, :sync_all ]
+  helper_method :filter_events_by_game
 
   def index
+    if user_signed_in?
+      # Extract normalized game names
+      @games = helpers.extract_game_names(current_user.events)
+
+      # Get selected game or default to first game
+      @selected_game = params[:game].presence || @games.first
+    end
   end
 
   def sync_tournaments
@@ -55,5 +63,12 @@ class HomeController < ApplicationController
     end
 
     redirect_to root_path
+  end
+
+  # Helper method to filter events by normalized game name
+  def filter_events_by_game(events, game_name)
+    events.select do |event|
+      helpers.normalize_game_name(event.name) == game_name
+    end
   end
 end

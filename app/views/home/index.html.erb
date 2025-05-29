@@ -8,14 +8,7 @@
   </div>
 </div>
 
-<% if current_user.tournaments.any? %>
-<%
-      # Extract unique games from event names
-      games = current_user.events.map(&:name).uniq.sort
-      # Default selected game is the first one
-      selected_game = params[:game] || games.first
-    %>
-
+<% if current_user.tournaments.any? && current_user.events.any? %>
 <div class="mb-4">
   <div class="card">
     <div class="card-header">
@@ -26,7 +19,7 @@
         <div class="col-md-6">
           <%= form_tag root_path, method: :get, class: "form-inline" do %>
           <div class="input-group mb-3">
-            <%= select_tag :game, options_for_select(games, selected_game), class: "form-control" %>
+            <%= select_tag :game, options_for_select(@games, @selected_game), class: "form-control" %>
             <div class="input-group-append">
               <%= submit_tag "View Results", class: "btn btn-primary" %>
             </div>
@@ -38,17 +31,23 @@
   </div>
 </div>
 
-<% if selected_game.present? %>
+<% if @selected_game.present? %>
 <%
-        # Find all events for the selected game
-        game_events = current_user.events.where("name LIKE ?", "%#{selected_game}%")
+        # Find all events for the selected game using our normalized names
+        game_events = filter_events_by_game(current_user.events, @selected_game)
 
-        # Get tournaments with these events and sort by date (newest first)
-        tournaments_with_events = game_events.includes(
+        # Get the event IDs to use in subsequent queries
+        event_ids = game_events.map(&:id)
+
+        # Use the event IDs to get properly eager-loaded events
+        game_events_with_associations = Event.includes(
           :tournament,
           :user_event_participations,
           matches: [:users, :user_match_participations]
-        ).group_by(&:tournament)
+        ).where(id: event_ids)
+
+        # Group these events by tournament
+        tournaments_with_events = game_events_with_associations.group_by(&:tournament)
 
         # Sort tournaments by date
         sorted_tournaments = tournaments_with_events.keys.sort_by { |t| t.start_at || Time.new(1970) }.reverse
@@ -56,7 +55,7 @@
 
 <div class="card">
   <div class="card-header">
-    <h4><%= selected_game %> Tournament Results</h4>
+    <h4><%= @selected_game %> Tournament Results</h4>
   </div>
   <div class="card-body">
     <div class="table-responsive">
