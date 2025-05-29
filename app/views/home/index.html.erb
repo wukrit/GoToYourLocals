@@ -1,32 +1,30 @@
-<div class="page-container">
-  <% if user_signed_in? %>
-  <%= turbo_frame_tag "action_panel" do %>
-  <div class="action-panel mb-4">
-    <div class="btn-group" role="group">
-      <%= button_to "Sync Tournaments Only", sync_user_tournaments_path, class: "btn btn-outline-primary", data: { turbo: true }, disabled: current_user.sync_in_progress? %>
-      <%= button_to "Sync All (Tournaments, Events & Matches)", sync_all_path, class: "btn btn-primary", data: { turbo: true }, disabled: current_user.sync_in_progress? %>
-    </div>
-    <% if current_user.sync_in_progress? %>
-    <div class="alert alert-info mt-2">
-      <small>A sync is currently in progress. Please wait for it to complete.</small>
-    </div>
-    <% end %>
+<% if user_signed_in? %>
+<%= turbo_frame_tag "action_panel" do %>
+<div class="action-panel mb-4">
+  <div class="btn-group" role="group">
+    <%= button_to "Sync Tournaments Only", sync_user_tournaments_path, class: "btn btn-outline-primary", data: { turbo: true }, disabled: current_user.sync_in_progress? %>
+    <%= button_to "Sync All (Tournaments, Events & Matches)", sync_all_path, class: "btn btn-primary", data: { turbo: true }, disabled: current_user.sync_in_progress? %>
   </div>
-  <% end %>
-
-  <%= turbo_frame_tag "user_data" do %>
-  <%= render partial: "user_data", locals: {
-      games: @games,
-      selected_game: @selected_game
-    } %>
-  <% end %>
-  <% else %>
-  <div class="jumbotron">
-    <h2>Track your tournament results</h2>
-    <p>Sign in with Start.gg to sync your tournament history and track your performance.</p>
-    <div class="cta-container">
-      <%= link_to "Sign in with Start.gg", user_startgg_omniauth_authorize_path, class: "btn btn-lg btn-primary" %>
-    </div>
+  <% if current_user.sync_in_progress? %>
+  <div class="alert alert-info mt-2">
+    <small>A sync is currently in progress. Please wait for it to complete.</small>
   </div>
   <% end %>
 </div>
+<% end %>
+
+<%= turbo_frame_tag "user_data" do %>
+<%= render partial: "user_data", locals: {
+    games: @games,
+    selected_game: @selected_game
+  } %>
+<% end %>
+<% else %>
+<div class="jumbotron">
+  <h2>Track your tournament results</h2>
+  <p>Sign in with Start.gg to sync your tournament history and track your performance.</p>
+  <div class="cta-container">
+    <%= link_to "Sign in with Start.gg", user_startgg_omniauth_authorize_path, class: "btn btn-lg btn-primary" %>
+  </div>
+</div>
+<% end %>
