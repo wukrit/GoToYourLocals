@@ -116,7 +116,11 @@
                   <% if opponent %>
                   <strong><%= opponent.tag || "Unknown" %></strong>
                   <% else %>
-                  <strong>Unknown Opponent</strong>
+                  <%
+                      # Try to extract opponent name from score
+                      opponent_name = extract_opponent_from_score(win.display_score, current_user.tag)
+                    %>
+                  <strong><%= opponent_name || "Unknown Opponent" %></strong>
                   <% end %>
                   <small class="text-muted"><%= win.display_score || win.full_round_text || "Win" %></small>
                 </li>
@@ -141,7 +145,11 @@
                   <% if opponent %>
                   <strong><%= opponent.tag || "Unknown" %></strong>
                   <% else %>
-                  <strong>Unknown Opponent</strong>
+                  <%
+                      # Try to extract opponent name from score
+                      opponent_name = extract_opponent_from_score(loss.display_score, current_user.tag)
+                    %>
+                  <strong><%= opponent_name || "Unknown Opponent" %></strong>
                   <% end %>
                   <small class="text-muted"><%= loss.display_score || loss.full_round_text || "Loss" %></small>
                 </li>
