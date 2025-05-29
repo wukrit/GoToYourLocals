@@ -67,7 +67,7 @@ class GameResultsViewModel
   end
 
   def win_percentage
-    total_matches > 0 ? (total_wins.to_f / total_matches * 100).round : 0
+    (total_matches > 0) ? (total_wins.to_f / total_matches * 100).round : 0
   end
 
   def date_range_text
@@ -102,19 +102,19 @@ class GameResultsViewModel
 
   def get_user_matches(all_matches)
     all_matches.joins(:user_match_participations)
-               .where(user_match_participations: { user_id: current_user.id })
+      .where(user_match_participations: {user_id: current_user.id})
   end
 
   def get_wins(user_matches)
     user_matches.joins(:user_match_participations)
-                .where(user_match_participations: { user_id: current_user.id, is_winner: true })
-                .distinct
+      .where(user_match_participations: {user_id: current_user.id, is_winner: true})
+      .distinct
   end
 
   def get_losses(user_matches)
     user_matches.joins(:user_match_participations)
-                .where(user_match_participations: { user_id: current_user.id, is_winner: false })
-                .distinct
+      .where(user_match_participations: {user_id: current_user.id, is_winner: false})
+      .distinct
   end
 
   def get_record(wins, losses)
@@ -123,8 +123,8 @@ class GameResultsViewModel
 
   def get_opponent(match)
     opponent_participation = match.user_match_participations
-                                  .where.not(user_id: current_user.id)
-                                  .first
+      .where.not(user_id: current_user.id)
+      .first
     opponent = opponent_participation&.user
 
     if opponent
