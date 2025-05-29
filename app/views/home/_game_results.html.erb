@@ -70,17 +70,17 @@
           <span class="tournament-type tournament-offline">Offline</span>
           <% end %>
         </td>
-        <td><span class="record"><%= record %></span></td>
+        <td><span class="record" style="font-weight: 800; font-family: var(--heading-font); background-color: var(--primary); color: var(--background); padding: 0.25rem 0.5rem; border: 2px solid var(--text); display: inline-block;"><%= record %></span></td>
         <td><%= participation&.final_placement&.ordinalize || "N/A" %></td>
         <td class="wins-column">
           <% if wins.any? %>
           <ul>
             <% wins.each do |win| %>
             <li>
-              <div class="player-match win">
-                <div class="player-name"><%= view_model.get_opponent(win) %></div>
-                <div class="match-score"><%= win.display_score || win.full_round_text || "Win" %></div>
-              </div>
+              <!-- Display opponent name with styled background -->
+              <strong><%= view_model.get_opponent(win) %></strong>
+              <!-- Display score in a match details box -->
+              <div class="match-details"><%= win.display_score || win.full_round_text || "Win" %></div>
             </li>
             <% end %>
           </ul>
@@ -93,10 +93,10 @@
           <ul>
             <% losses.each do |loss| %>
             <li>
-              <div class="player-match loss">
-                <div class="player-name"><%= view_model.get_opponent(loss) %></div>
-                <div class="match-score"><%= loss.display_score || loss.full_round_text || "Loss" %></div>
-              </div>
+              <!-- Display opponent name with styled background -->
+              <strong><%= view_model.get_opponent(loss) %></strong>
+              <!-- Display score in a match details box -->
+              <div class="match-details"><%= loss.display_score || loss.full_round_text || "Loss" %></div>
             </li>
             <% end %>
           </ul>
