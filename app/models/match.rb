@@ -41,4 +41,28 @@ class Match < ApplicationRecord
   def loser
     user_match_participations.find_by(is_winner: false)&.user
   end
+
+  # Get opponent for a specific user
+  def opponent_for(user)
+    opponents = users.where.not(id: user.id)
+    opponents.first
+  end
+
+  # Get opponent tag for a specific user
+  def opponent_tag_for(user)
+    opponent = opponent_for(user)
+    opponent&.tag || "Unknown"
+  end
+
+  # Get result display for a user
+  def result_display_for(user)
+    if display_score.present?
+      display_score
+    elsif full_round_text.present?
+      "#{full_round_text}"
+    else
+      is_winner = user_match_participations.find_by(user: user)&.is_winner
+      is_winner ? "Win" : "Loss"
+    end
+  end
 end

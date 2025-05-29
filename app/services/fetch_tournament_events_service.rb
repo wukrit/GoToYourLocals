@@ -5,6 +5,14 @@ class FetchTournamentEventsService
 
   attr_reader :tournament, :user, :error_messages
 
+  # Start.gg API limits: 80 requests per 60 seconds
+  MAX_REQUESTS_PER_MINUTE = 80
+  RATE_LIMIT_WINDOW = 60 # seconds
+
+  # Class variable to track API requests across instances
+  @@request_timestamps = []
+  @@request_mutex = Mutex.new
+
   # Define the query as a plain string, based on the Start.gg schema
   TOURNAMENT_EVENTS_QUERY = <<-GRAPHQL
     query TournamentEvents($tournamentId: ID!, $userId: ID!) {
@@ -28,6 +36,9 @@ class FetchTournamentEventsService
                   user {
                     id
                   }
+                  player {
+                    gamerTag
+                  }
                 }
               }
             }
@@ -50,15 +61,75 @@ class FetchTournamentEventsService
                   placement
                   entrant {
                     id
+                    name
                     participants {
                       user {
                         id
+                      }
+                      player {
+                        gamerTag
                       }
                     }
                   }
                 }
               }
               winnerId
+            }
+          }
+        }
+      }
+    }
+  GRAPHQL
+
+  # Alternative approach: get user's sets directly
+  USER_SETS_QUERY = <<-GRAPHQL
+    query UserSets($userId: ID!, $perPage: Int!, $page: Int!) {
+      user(id: $userId) {
+        player {
+          sets(
+            perPage: $perPage,
+            page: $page
+          ) {
+            pageInfo {
+              totalPages
+              page
+            }
+            nodes {
+              id
+              fullRoundText
+              displayScore
+              round
+              winnerId
+              event {
+                id
+                name
+                videogame {
+                  id
+                  name
+                }
+                tournament {
+                  id
+                  name
+                }
+              }
+              slots {
+                standing {
+                  placement
+                  entrant {
+                    id
+                    name
+                    participants {
+                      user {
+                        id
+                      }
+                      player {
+                        id
+                        gamerTag
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         }
@@ -109,9 +180,13 @@ class FetchTournamentEventsService
                 placement
                 entrant {
                   id
+                  name
                   participants {
                     user {
                       id
+                    }
+                    player {
+                      gamerTag
                     }
                   }
                 }
@@ -128,9 +203,13 @@ class FetchTournamentEventsService
             placement
             entrant {
               id
+              name
               participants {
                 user {
                   id
+                }
+                player {
+                  gamerTag
                 }
               }
             }
@@ -162,15 +241,11 @@ class FetchTournamentEventsService
     Rails.logger.debug "Starting event sync for tournament #{tournament.id} (#{tournament.name}) and user #{user.id}"
 
     begin
-      # Try the standard query first
+      # First, sync the event standings to get placement info
       result = fetch_with_standard_query
 
-      # If that fails due to complexity, try the fallback approach
-      if !result && @error_messages.any? { |msg| msg.include?("complexity is too high") }
-        Rails.logger.info "Query complexity too high, trying alternative approach for tournament #{tournament.id}"
-        @error_messages.clear
-        result = fetch_with_fallback_approach
-      end
+      # Next, fetch all the user's sets directly for better match data
+      result = fetch_user_sets(tournament) && result
 
       result
     rescue => e
@@ -183,11 +258,83 @@ class FetchTournamentEventsService
 
   private
 
+  # Method to handle rate limiting
+  def respect_rate_limit
+    @@request_mutex.synchronize do
+      current_time = Time.now.to_i
+
+      # Remove timestamps older than our window
+      @@request_timestamps.reject! { |timestamp| timestamp < current_time - RATE_LIMIT_WINDOW }
+
+      # If we've made too many requests, wait
+      if @@request_timestamps.size >= MAX_REQUESTS_PER_MINUTE
+        oldest_timestamp = @@request_timestamps.min
+        wait_time = (RATE_LIMIT_WINDOW - (current_time - oldest_timestamp)) + 1
+
+        if wait_time > 0
+          Rails.logger.info "Rate limit approaching, waiting #{wait_time} seconds before next request"
+          sleep(wait_time)
+        end
+      end
+
+      # Add current request timestamp
+      @@request_timestamps << Time.now.to_i
+    end
+  end
+
+  # Method to make a rate-limited API request with retries
+  def make_api_request(uri, request)
+    max_retries = 3
+    retry_count = 0
+
+    while retry_count < max_retries
+      respect_rate_limit
+
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+      http.read_timeout = 30
+
+      begin
+        response = http.request(request)
+
+        case response.code.to_i
+        when 200
+          return response
+        when 429
+          retry_count += 1
+          wait_time = 10 + (retry_count * 5) # Progressive backoff
+          Rails.logger.warn "Rate limit exceeded (429). Retry #{retry_count}/#{max_retries}. Waiting #{wait_time} seconds."
+          sleep(wait_time)
+        when 500..599
+          retry_count += 1
+          wait_time = 3 + (retry_count * 2)
+          Rails.logger.warn "Server error (#{response.code}). Retry #{retry_count}/#{max_retries}. Waiting #{wait_time} seconds."
+          sleep(wait_time)
+        else
+          Rails.logger.error "HTTP request failed: #{response.code} #{response.message}"
+          @error_messages << "API request failed with status #{response.code}"
+          return response
+        end
+      rescue Net::ReadTimeout, Net::OpenTimeout => e
+        retry_count += 1
+        wait_time = 5 + (retry_count * 3)
+        Rails.logger.warn "Request timeout: #{e.message}. Retry #{retry_count}/#{max_retries}. Waiting #{wait_time} seconds."
+        sleep(wait_time)
+      rescue => e
+        Rails.logger.error "Request error: #{e.message}"
+        @error_messages << "API request error: #{e.message}"
+        return nil
+      end
+    end
+
+    Rails.logger.error "Failed after #{max_retries} retries"
+    @error_messages << "API request failed after #{max_retries} retries"
+    nil
+  end
+
   def fetch_with_standard_query
     # Make a direct HTTP request to the StartGG API
     uri = URI.parse("https://api.start.gg/gql/alpha")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
 
     request = Net::HTTP::Post.new(uri.path)
     request["Content-Type"] = "application/json"
@@ -203,13 +350,8 @@ class FetchTournamentEventsService
       variables: variables
     }.to_json
 
-    response = http.request(request)
-
-    unless response.is_a?(Net::HTTPSuccess)
-      Rails.logger.error "HTTP request failed: #{response.code} #{response.message}"
-      @error_messages << "API request failed with status #{response.code}"
-      return false
-    end
+    response = make_api_request(uri, request)
+    return false unless response.is_a?(Net::HTTPSuccess)
 
     data = JSON.parse(response.body)
     Rails.logger.debug "StartGG API Response Data: #{data.inspect}"
@@ -248,12 +390,19 @@ class FetchTournamentEventsService
 
       # Process user's matches in this event
       if api_event["sets"] && api_event["sets"]["nodes"]
+        Rails.logger.info "Found #{api_event["sets"]["nodes"].size} matches for event #{event.name}"
+
         api_event["sets"]["nodes"].each do |api_match|
           next unless api_match && api_match["id"]
+
+          # Debug output to check match structure
+          Rails.logger.debug "Processing match: #{api_match.inspect}"
 
           match = process_match(event, api_match)
           matches_synced_count += 1 if match.persisted?
         end
+      else
+        Rails.logger.info "No matches found for event #{event.name}"
       end
     end
 
@@ -261,141 +410,176 @@ class FetchTournamentEventsService
     true
   end
 
-  def fetch_with_fallback_approach
-    # First, fetch just the tournament and events data (no sets/standings)
+  def fetch_user_sets(target_tournament)
+    Rails.logger.info "Fetching user sets for tournament #{target_tournament.id} (#{target_tournament.name})"
+
     uri = URI.parse("https://api.start.gg/gql/alpha")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-
-    request = Net::HTTP::Post.new(uri.path)
-    request["Content-Type"] = "application/json"
-    request["Authorization"] = "Bearer #{user.startgg_access_token}"
-
-    variables = {
-      tournamentId: tournament.startgg_id
-    }
-
-    request.body = {
-      query: TOURNAMENT_SIMPLE_QUERY,
-      variables: variables
-    }.to_json
-
-    response = http.request(request)
-
-    unless response.is_a?(Net::HTTPSuccess)
-      Rails.logger.error "HTTP request failed: #{response.code} #{response.message}"
-      @error_messages << "API request failed with status #{response.code}"
-      return false
-    end
-
-    data = JSON.parse(response.body)
-
-    if data["errors"]
-      data["errors"].each do |error|
-        @error_messages << "GraphQL Error: #{error["message"]}"
-      end
-      Rails.logger.error "GraphQL query failed for tournament #{tournament.id}: #{@error_messages.join("; ")}"
-      return false
-    end
-
-    tournament_data = data.dig("data", "tournament")
-    if tournament_data.nil?
-      Rails.logger.warn "No tournament data returned from StartGG API for ID: #{tournament.startgg_id}. Raw response: #{data.inspect}"
-      return false
-    end
-
-    events = tournament_data["events"]
-    unless events&.any?
-      Rails.logger.info "No events found for tournament #{tournament.id} (#{tournament.name})."
-      return true # Not an error, just no events
-    end
-
-    events_synced_count = 0
+    page = 1
+    per_page = 50
+    total_pages = 1
     matches_synced_count = 0
 
-    # Process each event
-    events.each do |api_event|
-      next unless api_event && api_event["id"]
+    # Process up to 10 pages of sets maximum (500 sets)
+    max_pages = 10
 
-      event = process_event(api_event)
-      events_synced_count += 1 if event.persisted?
+    while page <= [total_pages, max_pages].min
+      request = Net::HTTP::Post.new(uri.path)
+      request["Content-Type"] = "application/json"
+      request["Authorization"] = "Bearer #{user.startgg_access_token}"
 
-      # Now fetch sets and standings for this event with pagination
-      if event.persisted?
-        page = 1
-        total_pages = 1 # Start with 1, will be updated after first query
+      variables = {
+        userId: user.uid.to_i,
+        perPage: per_page,
+        page: page
+      }
 
-        while page <= total_pages
-          event_data = fetch_event_sets(event.startgg_id, page)
+      request.body = {
+        query: USER_SETS_QUERY,
+        variables: variables
+      }.to_json
 
-          if event_data
-            # Update total pages from the response
-            total_pages = event_data.dig("sets", "pageInfo", "totalPages") || 1
+      response = make_api_request(uri, request)
+      return false unless response.is_a?(Net::HTTPSuccess)
 
-            # Process user's standing in this event (only on first page)
-            if page == 1 && event_data["standings"]
-              process_user_standing(event, event_data["standings"])
-            end
+      data = JSON.parse(response.body)
 
-            # Process matches
-            if event_data["sets"] && event_data["sets"]["nodes"]
-              event_data["sets"]["nodes"].each do |api_match|
-                next unless api_match && api_match["id"]
+      if data["errors"]
+        data["errors"].each do |error|
+          @error_messages << "GraphQL Error: #{error["message"]}"
+        end
+        Rails.logger.error "GraphQL query failed for user sets: #{@error_messages.join("; ")}"
+        return false
+      end
 
-                match = process_match(event, api_match)
-                matches_synced_count += 1 if match.persisted?
-              end
-            end
-          else
-            break # Stop if there was an error
-          end
+      player_data = data.dig("data", "user", "player")
 
-          page += 1
+      if player_data.nil?
+        Rails.logger.warn "No player data returned from StartGG API for user #{user.uid}"
+        return false
+      end
+
+      sets_data = player_data["sets"]
+
+      # Update total pages from API response
+      total_pages = sets_data.dig("pageInfo", "totalPages") || 1
+
+      sets = sets_data["nodes"] || []
+      Rails.logger.info "Processing #{sets.size} sets from page #{page}/#{total_pages}"
+
+      # Filter for sets from the target tournament
+      tournament_sets = sets.select do |set|
+        tournament_id = set.dig("event", "tournament", "id")&.to_i
+        tournament_id == target_tournament.startgg_id
+      end
+
+      Rails.logger.info "Found #{tournament_sets.size} sets for tournament #{target_tournament.name}"
+
+      # Process each set
+      tournament_sets.each do |api_match|
+        event_id = api_match.dig("event", "id")
+
+        # Find or create the event
+        event = Event.find_by(startgg_id: event_id)
+
+        # Skip if we don't have this event in our database
+        next unless event
+
+        # Process the match
+        match = process_match_from_set(event, api_match)
+        matches_synced_count += 1 if match.persisted?
+      end
+
+      page += 1
+    end
+
+    Rails.logger.info "Successfully synced #{matches_synced_count} matches for tournament #{target_tournament.id} (#{target_tournament.name})"
+    true
+  end
+
+  def process_match_from_set(event, api_match)
+    # Create or update match
+    match = Match.find_or_initialize_by(startgg_id: api_match["id"])
+    match.event = event
+    match.round = api_match["round"]
+    match.round_number = api_match["round"].to_i if api_match["round"].present?
+    match.full_round_text = api_match["fullRoundText"]
+    match.display_score = api_match["displayScore"]
+    match.winner_id = api_match["winnerId"]
+
+    unless match.save
+      errors = match.errors.full_messages.join(", ")
+      Rails.logger.error "Failed to save match #{api_match["id"]}: #{errors}"
+      @error_messages << "Failed to save match: #{errors}"
+      return match
+    end
+
+    # Process participants from slots
+    return match unless api_match["slots"]&.any?
+
+    # Track all participants
+    all_participants = []
+
+    api_match["slots"].each do |slot|
+      next unless slot["standing"] && slot["standing"]["entrant"]
+
+      entrant = slot["standing"]["entrant"]
+      entrant_id = entrant["id"]
+      entrant_name = entrant["name"]
+      is_winner = match.winner_id.to_s == entrant_id.to_s
+
+      entrant["participants"]&.each do |participant|
+        next unless participant["user"] && participant["user"]["id"]
+
+        user_id = participant["user"]["id"].to_s
+        player_data = participant["player"]
+        gamer_tag = player_data ? player_data["gamerTag"] : nil
+
+        all_participants << {
+          user_id: user_id,
+          gamer_tag: gamer_tag || entrant_name || "Unknown Player",
+          entrant_id: entrant_id,
+          is_winner: is_winner
+        }
+      end
+    end
+
+    # Save participation for all participants
+    all_participants.each do |participant_data|
+      # Try to find the user in our database
+      participant_user = if participant_data[:user_id] == user.uid.to_s
+        user
+      else
+        User.find_by(uid: participant_data[:user_id])
+      end
+
+      # Create a placeholder user if needed
+      if participant_user.nil?
+        participant_user = User.create(
+          uid: participant_data[:user_id],
+          tag: participant_data[:gamer_tag],
+          email: "player-#{participant_data[:user_id]}@placeholder.com"
+        )
+      elsif participant_user.tag.blank? && participant_data[:gamer_tag].present?
+        # Update tag if we have it
+        participant_user.update(tag: participant_data[:gamer_tag])
+      end
+
+      # Create participation record
+      if participant_user.persisted?
+        participation = UserMatchParticipation.find_or_initialize_by(
+          user: participant_user,
+          match: match
+        )
+        participation.is_winner = participant_data[:is_winner]
+
+        unless participation.save
+          errors = participation.errors.full_messages.join(", ")
+          Rails.logger.error "Failed to save match participation for user #{participant_user.id}: #{errors}"
         end
       end
     end
 
-    Rails.logger.info "Successfully synced #{events_synced_count} events and #{matches_synced_count} matches for tournament #{tournament.id} (#{tournament.name})"
-    true
-  end
-
-  def fetch_event_sets(event_id, page)
-    uri = URI.parse("https://api.start.gg/gql/alpha")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-
-    request = Net::HTTP::Post.new(uri.path)
-    request["Content-Type"] = "application/json"
-    request["Authorization"] = "Bearer #{user.startgg_access_token}"
-
-    variables = {
-      eventId: event_id,
-      userId: user.uid.to_i,
-      page: page
-    }
-
-    request.body = {
-      query: EVENT_SETS_QUERY,
-      variables: variables
-    }.to_json
-
-    response = http.request(request)
-
-    unless response.is_a?(Net::HTTPSuccess)
-      Rails.logger.error "HTTP request failed for event #{event_id}: #{response.code} #{response.message}"
-      return nil
-    end
-
-    data = JSON.parse(response.body)
-
-    if data["errors"]
-      data["errors"].each do |error|
-        Rails.logger.error "GraphQL Error for event #{event_id}: #{error["message"]}"
-      end
-      return nil
-    end
-
-    data.dig("data", "event")
+    match
   end
 
   def process_event(api_event)
@@ -468,26 +652,74 @@ class FetchTournamentEventsService
     # Get the participants from the slots
     return unless api_match["slots"]&.any?
 
-    api_match["slots"].each_with_index do |slot, index|
+    # Track all participants for this match
+    all_participants = []
+
+    # First pass: collect all participants in this match
+    api_match["slots"].each do |slot|
       next unless slot["standing"] && slot["standing"]["entrant"] && slot["standing"]["entrant"]["participants"]
 
-      # Check if any participant in this slot is our user
-      is_user_slot = slot["standing"]["entrant"]["participants"].any? do |participant|
-        participant["user"] && participant["user"]["id"] && participant["user"]["id"].to_s == user.uid.to_s
+      entrant_id = slot["standing"]["entrant"]["id"]
+      entrant_name = slot["standing"]["entrant"]["name"]
+      is_winner = match.winner_id.to_s == entrant_id.to_s
+
+      # Process each participant in the entrant
+      slot["standing"]["entrant"]["participants"].each do |participant|
+        next unless participant["user"] && participant["user"]["id"]
+
+        user_id = participant["user"]["id"].to_s
+        gamer_tag = participant["player"] && participant["player"]["gamerTag"]
+
+        # Store participant info
+        all_participants << {
+          user_id: user_id,
+          gamer_tag: gamer_tag || entrant_name || "Unknown Player",
+          entrant_id: entrant_id,
+          is_winner: is_winner
+        }
       end
+    end
 
-      next unless is_user_slot
+    # Find our user in the participants
+    user_participant = all_participants.find { |p| p[:user_id] == user.uid.to_s }
 
-      # Create user match participation
-      is_winner = match.winner_id.to_s == slot["standing"]["entrant"]["id"].to_s
-
+    # Save our user's participation
+    if user_participant
       participation = UserMatchParticipation.find_or_initialize_by(user: user, match: match)
-      participation.is_winner = is_winner
+      participation.is_winner = user_participant[:is_winner]
 
       unless participation.save
         errors = participation.errors.full_messages.join(", ")
         Rails.logger.error "Failed to save user match participation for match #{match.id}: #{errors}"
         @error_messages << "Failed to save match participation: #{errors}"
+      end
+    end
+
+    # Find opponents (everyone else in the match)
+    opponents = all_participants.reject { |p| p[:user_id] == user.uid.to_s }
+
+    # Try to find or create users for opponents and create their participations
+    opponents.each do |opponent|
+      # Try to find the opponent in our database
+      opponent_user = User.find_by(uid: opponent[:user_id])
+
+      # If we don't have this user, create a placeholder
+      if opponent_user.nil?
+        opponent_user = User.create(
+          uid: opponent[:user_id],
+          tag: opponent[:gamer_tag],
+          email: "player-#{opponent[:user_id]}@placeholder.com" # Use a placeholder email
+        )
+      elsif opponent_user.tag.blank? && opponent[:gamer_tag].present?
+        # Update the tag if we have it now
+        opponent_user.update(tag: opponent[:gamer_tag])
+      end
+
+      # Create the match participation for the opponent
+      if opponent_user.persisted?
+        participation = UserMatchParticipation.find_or_initialize_by(user: opponent_user, match: match)
+        participation.is_winner = opponent[:is_winner]
+        participation.save
       end
     end
   end

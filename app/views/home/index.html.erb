@@ -1,5 +1,4 @@
-<h1>Home#index</h1>
-<p>Find me in app/views/home/index.html.erb</p>
+<h1>Locals Tracker</h1>
 
 <% if user_signed_in? %>
 <div class="mb-4">
@@ -10,65 +9,167 @@
 </div>
 
 <% if current_user.tournaments.any? %>
-<h2 class="mb-3">My Tournaments</h2>
-<div class="list-group mb-4">
-  <% current_user.tournaments.order(start_at: :desc).each do |tournament| %>
-  <div class="list-group-item">
-    <div class="d-flex justify-content-between align-items-center">
-      <div>
-        <h5 class="mb-1"><%= tournament.name %></h5>
-        <p class="mb-1">
-          <% if tournament.start_at %>
-          <%= tournament.start_at.strftime("%B %d, %Y") %>
-          <% end %>
-          <% if tournament.city %>
-          - <%= [tournament.city, tournament.state, tournament.country_code].compact.join(", ") %>
-          <% end %>
-        </p>
-      </div>
-      <div>
-        <%= button_to "Sync This Tournament's Events", sync_tournament_events_path(tournament), class: "btn btn-sm btn-outline-primary" %>
-      </div>
+<%
+      # Extract unique games from event names
+      games = current_user.events.map(&:name).uniq.sort
+      # Default selected game is the first one
+      selected_game = params[:game] || games.first
+    %>
+
+<div class="mb-4">
+  <div class="card">
+    <div class="card-header">
+      <h4>Select Game</h4>
     </div>
-
-    <% if tournament.events.any? %>
-    <div class="mt-3">
-      <h6>Events</h6>
-      <ul class="list-group">
-        <% tournament.events.each do |event| %>
-        <li class="list-group-item">
-          <strong><%= event.name %></strong>
-          <% if user_participation = current_user.user_event_participations.find_by(event: event) %>
-          <span class="badge bg-primary">Placement: <%= user_participation.final_placement %></span>
-          <% end %>
-
-          <% user_matches = current_user.matches.where(event_id: event.id) %>
-          <% if user_matches.any? %>
-          <div class="mt-2">
-            <h6>Matches</h6>
-            <ul class="list-group">
-              <% user_matches.each do |match| %>
-              <li class="list-group-item <%= current_user.user_match_participations.find_by(match: match)&.is_winner ? "list-group-item-success" : "list-group-item-danger" %>">
-                <div><%= match.full_round_text %></div>
-                <div><%= match.display_score %></div>
-              </li>
-              <% end %>
-            </ul>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <%= form_tag root_path, method: :get, class: "form-inline" do %>
+          <div class="input-group mb-3">
+            <%= select_tag :game, options_for_select(games, selected_game), class: "form-control" %>
+            <div class="input-group-append">
+              <%= submit_tag "View Results", class: "btn btn-primary" %>
+            </div>
           </div>
           <% end %>
-        </li>
-        <% end %>
-      </ul>
+        </div>
+      </div>
     </div>
-    <% end %>
   </div>
-  <% end %>
 </div>
+
+<% if selected_game.present? %>
+<%
+        # Find all events for the selected game
+        game_events = current_user.events.where("name LIKE ?", "%#{selected_game}%")
+
+        # Get tournaments with these events and sort by date (newest first)
+        tournaments_with_events = game_events.includes(
+          :tournament,
+          :user_event_participations,
+          matches: [:users, :user_match_participations]
+        ).group_by(&:tournament)
+
+        # Sort tournaments by date
+        sorted_tournaments = tournaments_with_events.keys.sort_by { |t| t.start_at || Time.new(1970) }.reverse
+      %>
+
+<div class="card">
+  <div class="card-header">
+    <h4><%= selected_game %> Tournament Results</h4>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Tournament</th>
+            <th>Date</th>
+            <th>Record</th>
+            <th>Placement</th>
+            <th>Wins</th>
+            <th>Losses</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% sorted_tournaments.each do |tournament| %>
+          <% events = tournaments_with_events[tournament] %>
+          <% events.each do |event| %>
+          <%
+                      # Get user's participation in this event
+                      participation = current_user.user_event_participations.find_by(event: event)
+
+                      # Get matches for this event
+                      all_matches = event.matches.includes(user_match_participations: :user)
+
+                      # Get user's matches
+                      user_matches = all_matches.joins(:user_match_participations)
+                                      .where(user_match_participations: { user_id: current_user.id })
+
+                      # Get wins and losses
+                      wins = user_matches.joins(:user_match_participations)
+                              .where(user_match_participations: { user_id: current_user.id, is_winner: true })
+                              .distinct
+
+                      losses = user_matches.joins(:user_match_participations)
+                               .where(user_match_participations: { user_id: current_user.id, is_winner: false })
+                               .distinct
+
+                      record = "#{wins.size}-#{losses.size}"
+                    %>
+          <tr>
+            <td><%= tournament.name %></td>
+            <td><%= tournament.start_at&.strftime("%b %d, %Y") || "Unknown" %></td>
+            <td><strong><%= record %></strong></td>
+            <td><%= participation&.final_placement || "N/A" %></td>
+            <td>
+              <% if wins.any? %>
+              <ul class="list-unstyled">
+                <% wins.each do |win| %>
+                <%
+                          # Find opponent
+                          opponent_participation = win.user_match_participations
+                                                    .where.not(user_id: current_user.id)
+                                                    .first
+                          opponent = opponent_participation&.user
+                        %>
+                <li>
+                  <% if opponent %>
+                  <strong><%= opponent.tag || "Unknown" %></strong>
+                  <% else %>
+                  <strong>Unknown Opponent</strong>
+                  <% end %>
+                  <small class="text-muted"><%= win.display_score || win.full_round_text || "Win" %></small>
+                </li>
+                <% end %>
+              </ul>
+              <% else %>
+              None
+              <% end %>
+            </td>
+            <td>
+              <% if losses.any? %>
+              <ul class="list-unstyled">
+                <% losses.each do |loss| %>
+                <%
+                          # Find opponent
+                          opponent_participation = loss.user_match_participations
+                                                     .where.not(user_id: current_user.id)
+                                                     .first
+                          opponent = opponent_participation&.user
+                        %>
+                <li>
+                  <% if opponent %>
+                  <strong><%= opponent.tag || "Unknown" %></strong>
+                  <% else %>
+                  <strong>Unknown Opponent</strong>
+                  <% end %>
+                  <small class="text-muted"><%= loss.display_score || loss.full_round_text || "Loss" %></small>
+                </li>
+                <% end %>
+              </ul>
+              <% else %>
+              None
+              <% end %>
+            </td>
+          </tr>
+          <% end %>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<% end %>
 <% else %>
 <div class="alert alert-info">
   You haven't synced any tournaments yet. Click the button above to sync your tournaments from Start.gg.
 </div>
 <% end %>
 <% else %>
-<p>Please <%= link_to "sign in", user_startgg_omniauth_authorize_path %> to sync your tournaments.</p>
+<div class="jumbotron">
+  <h2>Track your tournament results</h2>
+  <p>Sign in with Start.gg to sync your tournament history and track your performance.</p>
+  <p><%= link_to "Sign in with Start.gg", user_startgg_omniauth_authorize_path, class: "btn btn-lg btn-primary" %></p>
+</div>
 <% end %>
