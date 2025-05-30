@@ -119,7 +119,7 @@
           %>
       <tr>
         <td><%= tournament.name %></td>
-        <td><%= tournament.start_at&.strftime("%b %d, %Y") || "Unknown" %></td>
+        <td><%= tournament.start_at ? local_date(tournament.start_at, "%b %d, %Y") : "Unknown" %></td>
         <td>
           <% if tournament.is_online %>
           <span class="tournament-type tournament-online">Online</span>
