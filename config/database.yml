@@ -95,7 +95,7 @@ production:
     migrations_paths: db/cache_migrate
   queue:
     <<: *primary_production
-    database: locals_tracker_production_queue
+    url: <%= ENV["LOCALS_TRACKER_QUEUE_DATABASE_URL"] %>
     migrations_paths: db/queue_migrate
   cable:
     <<: *primary_production
